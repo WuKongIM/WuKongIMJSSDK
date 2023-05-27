@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "outDir": "./lib",
+        "sourceMap": false,
+        "module": "esnext",
+        "moduleResolution": "node",
+        "target": "es5",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+          ],
+        "declaration": true, // 生成 `.d.ts` 文件
+        "noImplicitAny": false,
+        "esModuleInterop": true,
+         "skipLibCheck": true,
+        "strict": true
+    },
+    "exclude": ["node_modules", "**/__tests__/*"],
+    "include": [
+        "./src/**/*"
+    ],
+}
