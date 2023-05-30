@@ -1,6 +1,6 @@
 import { MessageContentType } from "./const";
 import { Guid } from "./guid";
-import LIMSDK from "./index";
+import WKSDK from "./index";
 import { Channel, ChannelTypePerson, MediaMessageContent, Message, MessageContent, SyncOptions, MessageSignalContent } from "./model";
 import { Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting } from "./proto";
 import { Task, MessageTask, TaskStatus } from "./task";
@@ -27,15 +27,15 @@ export class ChatManager {
 
 
     private constructor() {
-        if (LIMSDK.shared().taskManager) {
-            LIMSDK.shared().taskManager.addListener((task: Task) => {
+        if (WKSDK.shared().taskManager) {
+            WKSDK.shared().taskManager.addListener((task: Task) => {
                 if (task.status === TaskStatus.success) {
                     if (task instanceof MessageTask) {
                         const messageTask = task as MessageTask
                         const sendPacket = this.sendingQueues.get(messageTask.message.clientSeq)
                         if (sendPacket) {
                             sendPacket.payload = messageTask.message.content.encode() // content需要重新编码
-                            LIMSDK.shared().connectManager.sendPacket(sendPacket)
+                            WKSDK.shared().connectManager.sendPacket(sendPacket)
                         }
                     }
                 }
@@ -57,18 +57,8 @@ export class ChatManager {
             }
             recvPacket.payload = SecurityManager.shared().decryption(recvPacket.payload)
 
-            const setting = Setting.fromUint8(recvPacket.setting)
-
-            if (setting.signal) {
-                // let type = recvPacket.payload[0]
-                // if(type !== 3) { // 如果不是decryptPreKeyWhisperMessage 则需要构建session
-                //     await this.buildSignalProcessSessionIfNeed(recvPacket.fromUID)
-                // }
-                // // await this.buildSignalProcessSessionIfNeed(recvPacket.fromUID)
-                // const plaintext = await SecurityManager.shared().signalDecrypt(recvPacket.fromUID, recvPacket.payload)
-                recvPacket.payload = new MessageSignalContent().encode() // 暂不支持signal加密
-
-            }
+            // const setting = Setting.fromUint8(recvPacket.setting)
+           
             const message = new Message(recvPacket)
             this.sendRecvackPacket(recvPacket);
             if (message.contentType === MessageContentType.cmd) { // 命令类消息分流处理
@@ -85,45 +75,18 @@ export class ChatManager {
 
     }
 
-    // async buildSignalProcessSessionIfNeed(uid: string) {
-    //     const hasSession = await SecurityManager.shared().store.hasSession(uid)
-    //     if (!hasSession) {
-    //         const signalSessionCallback = LIMSDK.shared().config.provider.signalSessionKeyCallback
-    //         if (signalSessionCallback) {
-    //             const signalKey = await signalSessionCallback(new Channel(uid, ChannelTypePerson))
-    //             if (signalKey) {
-    //                 await SecurityManager.shared().signalProcessSession(uid, {
-    //                     identityKey: signalKey.identityKey,
-    //                     signedPreKey: {
-    //                         signature: signalKey.signedSignature,
-    //                         keyId: signalKey.signedKeyID,
-    //                         publicKey: signalKey.signedPubKey,
-    //                     },
-    //                     registrationId: signalKey.registrationId,
-    //                     preKey: {
-    //                         keyId: signalKey.preKeyID!,
-    //                         publicKey: signalKey.preKeyPublicKey!,
-    //                     },
-    //                 })
-    //             } else {
-    //                 console.log(`获取用户发送者[${uid}]的signal失败！`)
-    //             }
-    //         }
-    //     }
-    // }
-
     async syncMessages(channel: Channel, opts: SyncOptions): Promise<Message[]> {
-        if (!LIMSDK.shared().config.provider.syncMessagesCallback) {
-            throw new Error("没有设置LIMSDK.shared().config.provider.syncMessagesCallback")
+        if (!WKSDK.shared().config.provider.syncMessagesCallback) {
+            throw new Error("没有设置WKSDK.shared().config.provider.syncMessagesCallback")
         }
-        return LIMSDK.shared().config.provider.syncMessagesCallback!(channel, opts)
+        return WKSDK.shared().config.provider.syncMessagesCallback!(channel, opts)
     }
 
     async syncMessageExtras(channel: Channel,extraVersion:number) {
-        if (!LIMSDK.shared().config.provider.syncMessageExtraCallback) {
-            throw new Error("没有设置LIMSDK.shared().config.provider.syncMessageExtraCallback")
+        if (!WKSDK.shared().config.provider.syncMessageExtraCallback) {
+            throw new Error("没有设置WKSDK.shared().config.provider.syncMessageExtraCallback")
         }
-       return LIMSDK.shared().config.provider.syncMessageExtraCallback!(channel,extraVersion,100)
+       return WKSDK.shared().config.provider.syncMessageExtraCallback!(channel,extraVersion,100)
     }
 
     sendRecvackPacket(recvPacket: RecvPacket) {
@@ -133,7 +96,7 @@ export class ChatManager {
         packet.reddot = recvPacket.reddot
         packet.messageID = recvPacket.messageID;
         packet.messageSeq = recvPacket.messageSeq;
-        LIMSDK.shared().connectManager.sendPacket(packet)
+        WKSDK.shared().connectManager.sendPacket(packet)
     }
 
     /**
@@ -152,21 +115,16 @@ export class ChatManager {
             opts = setting
         }
 
-        if (opts.signal) {
-            // await this.buildSignalProcessSessionIfNeed(channel.channelID)
-            // packet.payload = await SecurityManager.shared().signalEncrypt(channel.channelID, packet.payload)
-        }
-
         this.sendingQueues.set(packet.clientSeq, packet);
 
         const message = Message.fromSendPacket(packet, content)
         if (content instanceof MediaMessageContent) {
-            const task = LIMSDK.shared().config.provider.messageUploadTask(message)
+            const task = WKSDK.shared().config.provider.messageUploadTask(message)
             if (task) {
-                LIMSDK.shared().taskManager.addTask(task)
+                WKSDK.shared().taskManager.addTask(task)
             }
         } else {
-            LIMSDK.shared().connectManager.sendPacket(packet)
+            WKSDK.shared().connectManager.sendPacket(packet)
         }
         this.notifyMessageListeners(message)
 
@@ -178,7 +136,7 @@ export class ChatManager {
         packet.reddot = true;
         packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}3`
         packet.clientSeq = this.getClientSeq()
-        packet.fromUID = LIMSDK.shared().config.uid || '';
+        packet.fromUID = WKSDK.shared().config.uid || '';
         packet.channelID = channel.channelID;
         packet.channelType = channel.channelType
         packet.payload = content.encode()
@@ -278,7 +236,7 @@ export class ChatManager {
             const sendPacket = this.sendingQueues.get(clientSeq);
             if (sendPacket) {
                 console.log("重试消息---->",sendPacket)
-                LIMSDK.shared().connectManager.sendPacket(sendPacket);
+                WKSDK.shared().connectManager.sendPacket(sendPacket);
             }
         }
 

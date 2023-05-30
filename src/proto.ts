@@ -19,17 +19,15 @@ export enum PacketType {
 
 export class Setting {
   receiptEnabled: boolean = false // 消息回执是否开启
-  signal: boolean = false // 是否采用signal加密
   topic: boolean = false // 是否存在话题
 
   public toUint8(): number {
-    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.signal) << 5 | this.boolToInt(this.topic) << 3
+    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.topic) << 3
   }
 
   public static fromUint8(v: number): Setting {
     let setting = new Setting()
     setting.receiptEnabled = (v >> 7 & 0x01) > 0
-    setting.signal = (v >> 5 & 0x01) > 0
     setting.topic = (v >> 3 & 0x01) > 0
     return setting
   }
@@ -247,36 +245,45 @@ export default class Proto implements IProto {
   encodeConnect(packet: ConnectPacket) {
     const enc = new Encoder();
     enc.writeUint8(packet.version);
-    enc.writeString(packet.clientKey);
-    enc.writeUint8(0x01); // deviceFlag
+    enc.writeUint8(0x01); // deviceFlag 0x01表示web
     enc.writeString(packet.deviceID);
-    enc.writeInt64(new BigNumber(packet.clientTimestamp));
     enc.writeString(packet.uid);
     enc.writeString(packet.token);
+    enc.writeInt64(new BigNumber(packet.clientTimestamp));
+    enc.writeString(packet.clientKey);
+
     return enc.w;
   }
 
   encodeSend(packet: SendPacket) {
     const enc = new Encoder();
+    // setting
     enc.writeByte(packet.setting)
 
-    const payload = Uint8Array.from(enc.stringToUint(SecurityManager.shared().encryption2(packet.payload)))
-
-    const msgKey = SecurityManager.shared().encryption(packet.veritifyString(payload))
-    enc.writeString(Md5.init(msgKey))
-
+    // messageID
     enc.writeInt32(packet.clientSeq);
+
+    // clientMsgNo
     if (!packet.clientMsgNo || packet.clientMsgNo === '') {
       packet.clientMsgNo = getUUID();
     }
-    enc.writeString(packet.clientMsgNo); // clientMsgNo
+    enc.writeString(packet.clientMsgNo); 
 
+    // channel
     enc.writeString(packet.channelID);
     enc.writeByte(packet.channelType);
+    // msg key
+    const payload = Uint8Array.from(enc.stringToUint(SecurityManager.shared().encryption2(packet.payload)))
+    const msgKey = SecurityManager.shared().encryption(packet.veritifyString(payload))
+    enc.writeString(Md5.init(msgKey))
+
+    // topic
     const setting = Setting.fromUint8(packet.setting)
     if (setting.topic) {
       enc.writeString(packet.topic || "")
     }
+
+    // payload
     if (payload) {
 
       enc.writeBytes(Array.from(payload))
@@ -293,10 +300,10 @@ export default class Proto implements IProto {
   decodeConnect(f: Packet, decode: Decoder) {
     const p = new ConnackPacket();
     p.from(f);
-    p.serverKey = decode.readString()
-    p.salt = decode.readString()
     p.timeDiff = decode.readInt64();
     p.reasonCode = decode.readByte();
+    p.serverKey = decode.readString()
+    p.salt = decode.readString()
     return p;
   }
   decodeDisconnect(f: Packet, decode: Decoder) {
@@ -311,25 +318,25 @@ export default class Proto implements IProto {
     p.from(f);
     p.setting = decode.readByte()
     p.msgKey = decode.readString()
-    p.messageID = decode.readInt64().toString();
-    p.messageSeq = decode.readInt32();
-    p.clientMsgNo = decode.readString();
-    p.timestamp = decode.readInt32();
+    p.fromUID = decode.readString();
     p.channelID = decode.readString();
     p.channelType = decode.readByte();
+    p.clientMsgNo = decode.readString();
+    p.messageID = decode.readInt64().toString();
+    p.messageSeq = decode.readInt32();
+    p.timestamp = decode.readInt32();
     const setting = Setting.fromUint8(p.setting)
     if (setting.topic) {
       p.topic = decode.readString()
     }
-    p.fromUID = decode.readString();
     p.payload = decode.readRemaining()
     return p;
   }
   decodeSendackPacket(f: Packet, decode: Decoder) {
     const p = new SendackPacket();
     p.from(f);
-    p.clientSeq = decode.readInt32();
     p.messageID = decode.readInt64();
+    p.clientSeq = decode.readInt32();
     p.messageSeq = decode.readInt32();
     p.reasonCode = decode.readByte();
     return p;

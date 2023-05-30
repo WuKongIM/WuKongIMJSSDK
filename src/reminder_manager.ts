@@ -1,4 +1,4 @@
-import LIMSDK from ".";
+import WKSDK from ".";
 import { ConversationAction, ConversationManager } from "./conversation_manager";
 import { Channel, Reminder } from "./model";
 
@@ -17,12 +17,12 @@ export class ReminderManager {
     }
 
     async sync() {
-        if (!LIMSDK.shared().config.provider.syncRemindersCallback) {
+        if (!WKSDK.shared().config.provider.syncRemindersCallback) {
             console.log("##########syncRemindersCallback##########")
             return
         }
         const version = this.maxReminderVersion()
-        const reminders = await LIMSDK.shared().config.provider.syncRemindersCallback!(version)
+        const reminders = await WKSDK.shared().config.provider.syncRemindersCallback!(version)
         if (reminders && reminders.length > 0) {
             const channels = new Set<Channel>()
             for (const newReminder of reminders) {
@@ -48,7 +48,7 @@ export class ReminderManager {
     }
 
     async done(ids: number[]) {
-        if (!LIMSDK.shared().config.provider.reminderDoneCallback) {
+        if (!WKSDK.shared().config.provider.reminderDoneCallback) {
             console.log("##########reminderDoneCallback##########")
             return
         }
@@ -60,7 +60,7 @@ export class ReminderManager {
             const channels = this.getChannelWithReminders(reminders)
             this.updateConversations(channels)
         }
-        return LIMSDK.shared().config.provider.reminderDoneCallback!(ids)
+        return WKSDK.shared().config.provider.reminderDoneCallback!(ids)
     }
 
     private getChannelWithReminders(reminders: Reminder[]) {

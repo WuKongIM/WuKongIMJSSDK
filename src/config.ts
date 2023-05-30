@@ -1,7 +1,7 @@
 import Proto, { IProto } from "./proto"
 import { Provider } from "./provider"
 
-export class LIMConfig {
+export class WKConfig {
     constructor() {
         this.provider = new Provider()
     }
@@ -13,5 +13,6 @@ export class LIMConfig {
     heartbeatInterval: number = 60000; // 心跳频率 单位毫秒
     provider!: Provider
     receiptFlushInterval:number = 2000 // 回执flush间隔 单位为毫秒ms
+    sdkVersion = "1.0.0" // SDK版本号
 
 }

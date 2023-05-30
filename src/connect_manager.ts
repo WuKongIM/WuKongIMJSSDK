@@ -1,4 +1,4 @@
-import LIMSDK from "./index"
+import WKSDK from "./index"
 import { ConnackPacket, ConnectPacket, DisconnectPacket, IProto, Packet, PacketType, PingPacket, RecvackPacket, RecvPacket, SendPacket } from "./proto";
 import { generateKeyPair, sharedKey } from 'curve25519-js';
 import { Md5 } from "md5-typescript";
@@ -81,7 +81,7 @@ export class ConnectManager {
                 console.log(`第${self.pingRetryCount}次，尝试ping。`);
             }
 
-        }, LIMSDK.shared().config.heartbeatInterval);
+        }, WKSDK.shared().config.heartbeatInterval);
     }
 
     connect() {
@@ -95,13 +95,13 @@ export class ConnectManager {
             console.log('已在连接中，不再进行连接.');
             return;
         }
-        if (LIMSDK.shared().config.provider.connectAddrCallback != null) {
-            const connectAddrCallback = LIMSDK.shared().config.provider.connectAddrCallback
+        if (WKSDK.shared().config.provider.connectAddrCallback != null) {
+            const connectAddrCallback = WKSDK.shared().config.provider.connectAddrCallback
             connectAddrCallback((addr: string) => {
                 this.connectWithAddr(addr)
             })
         } else {
-            this.connectWithAddr(LIMSDK.shared().config.addr)
+            this.connectWithAddr(WKSDK.shared().config.addr)
         }
 
     }
@@ -126,8 +126,8 @@ export class ConnectManager {
             const deviceID = Guid.create().toString().replace(/-/g, "")
             connectPacket.deviceID = deviceID + "W";
             connectPacket.clientTimestamp = new Date().getTime();
-            connectPacket.uid = LIMSDK.shared().config.uid || '';
-            connectPacket.token = LIMSDK.shared().config.token || '';
+            connectPacket.uid = WKSDK.shared().config.uid || '';
+            connectPacket.token = WKSDK.shared().config.token || '';
             const data = self.getProto().encode(connectPacket);
             this.send(data);
         }
@@ -327,7 +327,7 @@ export class ConnectManager {
 
 
 
-                LIMSDK.shared().chatManager.flushSendingQueue() // 将发送队列里的消息flush出去
+                WKSDK.shared().chatManager.flushSendingQueue() // 将发送队列里的消息flush出去
             } else {
                 console.log('连接失败！错误->', connackPacket.reasonCode);
                 this.status = ConnectStatus.ConnectFail;
@@ -344,7 +344,7 @@ export class ConnectManager {
             this.notifyConnectStatusListeners(disconnectPacket.reasonCode);
         }
 
-        LIMSDK.shared().chatManager.onPacket(p)
+        WKSDK.shared().chatManager.onPacket(p)
 
     }
 
@@ -363,7 +363,7 @@ export class ConnectManager {
     }
 
     getProto(): IProto {
-        return LIMSDK.shared().config.proto
+        return WKSDK.shared().config.proto
     }
 
     // 添加连接状态监听

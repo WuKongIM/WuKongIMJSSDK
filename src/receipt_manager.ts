@@ -1,4 +1,4 @@
-import LIMSDK from ".";
+import WKSDK from ".";
 import { Channel, Message } from "./model";
 
 export type MessageReceiptListener = ((channel:Channel,message: Message[]) => void);
@@ -18,7 +18,7 @@ export class ReceiptManager {
     private  channelMessagesMap = new Map<string,Message[]>();
 
    private setup() {
-        this.timer = setInterval(this.flushLoop.bind(this),LIMSDK.shared().config.receiptFlushInterval)
+        this.timer = setInterval(this.flushLoop.bind(this),WKSDK.shared().config.receiptFlushInterval)
     }
 
     // 添加需要回执的消息
@@ -39,8 +39,8 @@ export class ReceiptManager {
     }
 
     private flush(channelKey:string) {
-        if(!LIMSDK.shared().config.provider.messageReadedCallback) {
-            throw new Error("没有设置LIMSDK.shared().config.provider.messageReadedCallback")
+        if(!WKSDK.shared().config.provider.messageReadedCallback) {
+            throw new Error("没有设置WKSDK.shared().config.provider.messageReadedCallback")
         }
         const messages = this.channelMessagesMap.get(channelKey)
 
@@ -56,7 +56,7 @@ export class ReceiptManager {
             return
         }
         const channel = Channel.fromChannelKey(channelKey)!
-        LIMSDK.shared().config.provider.messageReadedCallback!(channel,tmpMessages).then(()=>{
+        WKSDK.shared().config.provider.messageReadedCallback!(channel,tmpMessages).then(()=>{
             this.removeCacheWithLength(channelKey,flushCachedLen)
             this.notifyListeners(channel,tmpMessages)
         })

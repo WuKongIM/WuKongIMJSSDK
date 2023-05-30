@@ -1,5 +1,5 @@
 import { RecvPacket, SendPacket, Setting } from './proto';
-import LIMSDK from './index';
+import WKSDK from './index';
 import { MessageContentType } from "./const"
 
 
@@ -125,7 +125,6 @@ export class Message {
     fromUID!: string; // 发送者uid
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
-    private _contentType!: number; // 正文类型
     content!: MessageContent; // 消息负载
     status!: MessageStatus; // 消息状态 1.成功 其他失败
     voicePlaying: boolean = false; // 语音是否在播放中 （语音消息特有）
@@ -137,7 +136,7 @@ export class Message {
 
     // 是否是发送的消息
     public get send(): boolean {
-        return this.fromUID === LIMSDK.shared().config.uid
+        return this.fromUID === WKSDK.shared().config.uid
     }
 
     public get contentType(): number {
@@ -338,7 +337,7 @@ export class Conversation {
     simpleReminders = new Array<Reminder>()// 除去重复的type了的reminder
 
     public get channelInfo() {
-        return LIMSDK.shared().channelManager.getChannelInfo(this.channel);
+        return WKSDK.shared().channelManager.getChannelInfo(this.channel);
     }
 
     public isEqual(c: Conversation) {
@@ -415,7 +414,7 @@ export class Conversation {
                 if (mention.all) {
                     this._isMentionMe = true
                 }
-                if (mention.uids && mention.uids.includes(LIMSDK.shared().config.uid || "")) {
+                if (mention.uids && mention.uids.includes(WKSDK.shared().config.uid || "")) {
                     this._isMentionMe = true
                 }
             }
@@ -483,7 +482,7 @@ export class Reply {
         this.rootMessageID = data["root_message_id"]
         if (data["payload"]) {
             const contentType = data["payload"]["type"]
-            const messageContent = LIMSDK.shared().getMessageContent(contentType)
+            const messageContent = WKSDK.shared().getMessageContent(contentType)
             const payload = stringToUint8Array(JSON.stringify(data["payload"]))
             messageContent.decode(payload)
             this.content = messageContent
@@ -515,11 +514,17 @@ export class Reminder {
     }
 }
 
+export enum PullMode {
+    PullModeDown = 0, // 向下拉取
+    PullModeUp = 1 // 向上拉取
+}
+
+// 详细参考文档说明：https://githubim.com/api/message#%E8%8E%B7%E5%8F%96%E6%9F%90%E9%A2%91%E9%81%93%E6%B6%88%E6%81%AF
 export class SyncOptions {
-    maxMessageSeq: number = 0 // 最大消息序号
-    minMessageSeq: number = 0 // 最小消息序号
+    startMessageSeq: number = 0 // 开始消息列号（结果包含start_message_seq的消息）
+    endMessageSeq: number = 0 //  结束消息列号（结果不包含end_message_seq的消息）0表示不限制
     limit: number = 30 // 每次限制数量
-    reverse: boolean = true // 是否反序查询
+    pullMode: PullMode = PullMode.PullModeDown // 拉取模式 0:向下拉取 1:向上拉取
 }
 
 
@@ -636,7 +641,7 @@ export class SystemContent extends MessageContent {
                 for (let i = 0; i <= extraArray.length - 1; i++) {
                     const extrMap = extraArray[i]
                     const name = extrMap["name"] || ""
-                    // if(LIMSDK.shared().config.uid === extrMap["uid"] ) {
+                    // if(WKSDK.shared().config.uid === extrMap["uid"] ) {
                     //     name = "你"
                     // }
                     content = content.replace(`{${i}}`, name)

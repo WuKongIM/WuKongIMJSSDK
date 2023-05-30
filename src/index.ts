@@ -10,14 +10,14 @@ import { SecurityManager } from "./security";
 
 import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, MessageContentManager,CMDContent, MessageSignalContent, MessageText, SystemContent } from "./model";
 import { ReminderManager } from "./reminder_manager";
-import { LIMConfig } from "./config";
+import { WKConfig } from "./config";
 import { ReceiptManager } from "./receipt_manager";
 
 
 
 
 export default class WKSDK {
-    config!: LIMConfig
+    config!: WKConfig
     messageContentManager!: MessageContentManager
     connectManager!: ConnectManager
     chatManager!: ChatManager
@@ -38,7 +38,7 @@ export default class WKSDK {
     }
 
     private init() {
-        this.config = new LIMConfig()
+        this.config = new WKConfig()
         this.taskManager = new TaskManager()
         this.messageContentManager =  MessageContentManager.shared()
         this.connectManager = ConnectManager.shared()
@@ -116,6 +116,6 @@ export default class WKSDK {
 
 
 
-// const self = LIMSDK.shared();
-// window['limsdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.limsdk获取到app对象
+// const self = WKSDK.shared();
+// window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象
 // export default self;
