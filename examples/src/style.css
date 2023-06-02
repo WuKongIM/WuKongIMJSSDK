@@ -14,6 +14,10 @@
   -webkit-text-size-adjust: 100%;
 }
 
+html {
+  overflow: hidden;
+}
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -27,8 +31,8 @@ body {
   margin: 0;
   display: flex;
   place-items: center;
-  min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 h1 {
@@ -60,10 +64,10 @@ button:focus-visible {
 }
 
 #app {
-  max-width: 1280px;
   margin: 0 auto;
   text-align: center;
   width: 100%;
+  overflow: hidden;
 }
 
 @media (prefers-color-scheme: light) {

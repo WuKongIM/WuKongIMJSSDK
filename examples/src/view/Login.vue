@@ -83,7 +83,6 @@ const login = () => {
 }
 
 .item label {
-  color: black;
   font-size: 17px;
 }
 

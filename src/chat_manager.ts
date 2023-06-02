@@ -149,7 +149,7 @@ export class ChatManager {
     // 通知命令消息监听者
     notifyCMDListeners(message: Message) {
         if (this.cmdListeners) {
-            this.cmdListeners.forEach((listener: (message) => void) => {
+            this.cmdListeners.forEach((listener: (message:Message) => void) => {
                 if (listener) {
                     listener(message);
                 }
@@ -199,7 +199,7 @@ export class ChatManager {
     // 通知消息状态改变监听者
     notifyMessageStatusListeners(sendackPacket: SendackPacket) {
         if (this.sendStatusListeners) {
-            this.sendStatusListeners.forEach((listener: (SendackPacket) => void) => {
+            this.sendStatusListeners.forEach((listener: (ack:SendackPacket) => void) => {
                 if (listener) {
                     listener(sendackPacket);
                 }

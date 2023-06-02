@@ -1,5 +1,5 @@
 import { Channel, ChannelInfo, Subscriber } from "./model";
-import LIMSDK from "./index";
+import WKSDK from "./index";
 
 
 // 成员数据改变回调
@@ -12,7 +12,7 @@ export class ChannelManager {
     channelInfocacheMap: any = {};
     // 请求队列
     requestQueueMap: Map<string, boolean> = new Map();
-    listeners: ((ChannelInfoModel) => void)[] = new Array(); // 监听改变
+    listeners: ((channelInfo:ChannelInfo) => void)[] = new Array(); // 监听改变
     // 频道成员缓存信息map
     subscribeCacheMap: Map<string, Subscriber[]> = new Map();
     // 成员请求队列
@@ -20,7 +20,7 @@ export class ChannelManager {
     // 成员改变监听
     subscriberChangeListeners: SubscriberChangeListener[] = new Array();
     // 频道删除监听
-    deleteChannelInfoListeners: ((ChannelInfoModel) => void)[] = new Array();
+    deleteChannelInfoListeners: ((channelInfo:ChannelInfo) => void)[] = new Array();
 
     private constructor() {
         
@@ -43,9 +43,9 @@ export class ChannelManager {
         }
         try {
             this.requestQueueMap.set(channelKey, true);
-            if (LIMSDK.shared().config.provider.channelInfoCallback != null) {
+            if (WKSDK.shared().config.provider.channelInfoCallback != null) {
 
-                const channelInfoModel = await LIMSDK.shared().config.provider.channelInfoCallback(channel);
+                const channelInfoModel = await WKSDK.shared().config.provider.channelInfoCallback(channel);
                 this.channelInfocacheMap[channelKey] = channelInfoModel;
                 if (channelInfoModel) {
                     this.notifyListeners(channelInfoModel);
@@ -74,7 +74,7 @@ export class ChannelManager {
             } else {
                 cacheSubscribers = new Array();
             }
-            const subscribers = await LIMSDK.shared().config.provider.syncSubscribersCallback(channel, version || 0);
+            const subscribers = await WKSDK.shared().config.provider.syncSubscribersCallback(channel, version || 0);
             if (subscribers && subscribers.length > 0) {
                 for (const subscriber of subscribers) {
                     let update = false;
@@ -129,7 +129,7 @@ export class ChannelManager {
         const subscribers = this.subscribeCacheMap.get(channel.getChannelKey());
         if (subscribers) {
             for (const subscriber of subscribers) {
-                if (!subscriber.isDeleted && subscriber.uid === LIMSDK.shared().config.uid) {
+                if (!subscriber.isDeleted && subscriber.uid === WKSDK.shared().config.uid) {
                     return subscriber;
                 }
             }
@@ -151,11 +151,11 @@ export class ChannelManager {
     }
 
     // 添加删除频道信息监听
-    addDeleteChannelInfoListener(listener: (channel: Channel) => void) {
+    addDeleteChannelInfoListener(listener: (channel: ChannelInfo) => void) {
         this.deleteChannelInfoListeners.push(listener);
     }
     // 移除删除频道信息监听
-    removeDeleteChannelInfoListener(listener: (channel: Channel) => void) {
+    removeDeleteChannelInfoListener(listener: (channel: ChannelInfo) => void) {
         const len = this.deleteChannelInfoListeners.length;
         for (let i = 0; i < len; i++) {
             if (listener === this.deleteChannelInfoListeners[i]) {

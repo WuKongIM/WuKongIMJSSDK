@@ -196,7 +196,7 @@ export class MessageContent {
         const contentObj = this.encodeJSON()
         contentObj.type = this.contentType
         if (this.mention) {
-            const mentionObj = {}
+            const mentionObj:any = {}
             if (this.mention.all) {
                 mentionObj["all"] = 1
             }
@@ -459,7 +459,7 @@ export class Reply {
     content!: MessageContent
 
     public encode() {
-        const rep = {
+        const rep:any = {
             "message_id": this.messageID,
             "message_seq": this.messageSeq,
             "from_uid": this.fromUID,

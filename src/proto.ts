@@ -190,7 +190,7 @@ export class RecvackPacket extends Packet {
 }
 
 export interface IProto {
-  encode(f: Packet)
+  encode(f: Packet):any
   decode(data: Uint8Array): Packet
 }
 

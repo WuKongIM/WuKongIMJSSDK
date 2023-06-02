@@ -29,6 +29,10 @@ const token = router.currentRoute.value.query.token as string || "token111";
 
 title.value = `${uid || ""}(未连接)`
 
+if(!APIClient.shared.config.apiURL || APIClient.shared.config.apiURL === '') {
+    WKSDK.shared().connectManager.disconnect()
+    router.push({ path: '/' })
+}   
 // 获取IM的长连接地址
 APIClient.shared.get('/route', {
     param: { uid: router.currentRoute.value.query.uid }
@@ -86,7 +90,7 @@ const connectIM = (addr: string) => {
 
     // 监听消息
     WKSDK.shared().chatManager.addMessageListener((msg) => {
-        if(to.value.channelID != msg.channel.channelID || to.value.channelType != msg.channel.channelType) {
+        if (to.value.channelID != msg.channel.channelID || to.value.channelType != msg.channel.channelType) {
             return
         }
         messages.value.push(msg)
@@ -133,7 +137,7 @@ const chatGroupClick = (v: any) => {
         placeholder.value = "请输入群组ID"
     }
 }
-const scrollBottom =  () => {
+const scrollBottom = () => {
     const chat = chatRef.value
     if (chat) {
         nextTick(function () {
@@ -155,15 +159,15 @@ const pullLast = async () => {
         })
     }
     scrollBottom()
-    
+
 }
 
 const pullup = async () => {
 
-    if(messages.value.length == 0) {
+    if (messages.value.length == 0) {
         return
     }
-    const lastMsg = messages.value[messages.value.length-1]
+    const lastMsg = messages.value[messages.value.length - 1]
     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
         limit: 15, startMessageSeq: lastMsg.messageSeq, endMessageSeq: 0,
         pullMode: PullMode.PullModeUp
@@ -176,20 +180,20 @@ const pullup = async () => {
 }
 
 const pullDown = async () => {
-    if(messages.value.length == 0) {
+    if (messages.value.length == 0) {
         return
     }
     const firstMsg = messages.value[0]
-    if(firstMsg.messageSeq == 1) {
+    if (firstMsg.messageSeq == 1) {
         pulldownFinished.value = true
         return
     }
     const limit = 15
     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
-        limit: limit, startMessageSeq: firstMsg.messageSeq-1, endMessageSeq: 0,
+        limit: limit, startMessageSeq: firstMsg.messageSeq - 1, endMessageSeq: 0,
         pullMode: PullMode.PullModeDown
     })
-    if(msgs.length < limit) {
+    if (msgs.length < limit) {
         pulldownFinished.value = true
     }
     if (msgs && msgs.length > 0) {
@@ -256,7 +260,7 @@ const handleScroll = (e: any) => {
     const targetScrollTop = e.target.scrollTop;
     const scrollOffsetTop = e.target.scrollHeight - (targetScrollTop + e.target.clientHeight);
     if (targetScrollTop <= 250) { // 下拉
-        if(pulldowning.value || pulldownFinished.value) {
+        if (pulldowning.value || pulldownFinished.value) {
             return
         }
         pulldowning.value = true
@@ -267,6 +271,20 @@ const handleScroll = (e: any) => {
         })
     }
 }
+
+// const sendInputFocus = () => {
+//     document.body.addEventListener("touchmove", stop, {
+//     passive: false,
+//   }); // passive 参数不能省略，用来兼容ios和android
+// }
+// const sendInputBlur = () => {
+//     document.body.removeEventListener("touchmove", stop);
+// }
+// const  stop = (e:any) => {
+//   e.preventDefault(); // 阻止默认的处理方式(阻止下拉滑动的效果)
+// };
+
+
 
 </script>
 <template>
@@ -303,7 +321,7 @@ const handleScroll = (e: any) => {
 
         </div>
         <div class="footer">
-            <input placeholder="发送消息" v-model="text" />
+            <input placeholder="发送消息" v-model="text" style="height: 40px;" />
             <button v-on:click="onSend">发送</button>
         </div>
     </div>
@@ -331,6 +349,8 @@ const handleScroll = (e: any) => {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    position: relative;
 }
 
 .header {
@@ -341,8 +361,17 @@ const handleScroll = (e: any) => {
     justify-content: center;
     border-bottom: 1px;
     position: fixed;
-    top: 0;
+    top: env(safe-area-inset-top);
+    left: 0;
+    right: 0;
+    z-index: 9999;
     width: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+    .header {
+        background-color: #000;
+    }
 }
 
 .header .left button {
@@ -373,14 +402,21 @@ const handleScroll = (e: any) => {
 
 
 .content {
-    flex: 1;
     background-color: #f5f5f5;
-    flex-direction: column;
-    padding-top: 60px;
+    height: calc(100vh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    /* header + footer */
     /* header height */
-    padding-bottom: 60px;
+    margin-top: 60px;
+    /* padding-top: 60px; */
+    /* padding-bottom: 60px; */
     overflow-y: auto;
     /* footer height */
+}
+
+@media (prefers-color-scheme: dark) {
+    .content {
+        background-color: #000;
+    }
 }
 
 .message {
@@ -444,9 +480,15 @@ const handleScroll = (e: any) => {
     background-color: white;
     display: flex;
     position: fixed;
-    bottom: 0px;
+    bottom: env(safe-area-inset-bottom);
     width: 100%;
     align-items: center;
+}
+
+@media (prefers-color-scheme: dark) {
+    .footer {
+        background-color: #333;
+    }
 }
 
 .footer button {
@@ -485,6 +527,13 @@ const handleScroll = (e: any) => {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
     border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .setting .setting-content {
+        background-color: #333;
+        color: white;
+    }
 }
 
 .switch {
