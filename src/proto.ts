@@ -245,7 +245,7 @@ export default class Proto implements IProto {
   encodeConnect(packet: ConnectPacket) {
     const enc = new Encoder();
     enc.writeUint8(packet.version);
-    enc.writeUint8(0x01); // deviceFlag 0x01表示web
+    enc.writeUint8(packet.deviceFlag); // deviceFlag 0x01表示web
     enc.writeString(packet.deviceID);
     enc.writeString(packet.uid);
     enc.writeString(packet.token);

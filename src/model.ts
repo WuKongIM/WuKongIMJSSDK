@@ -515,8 +515,8 @@ export class Reminder {
 }
 
 export enum PullMode {
-    PullModeDown = 0, // 向下拉取
-    PullModeUp = 1 // 向上拉取
+    Down = 0, // 向下拉取
+    Up = 1 // 向上拉取
 }
 
 // 详细参考文档说明：https://githubim.com/api/message#%E8%8E%B7%E5%8F%96%E6%9F%90%E9%A2%91%E9%81%93%E6%B6%88%E6%81%AF
@@ -524,7 +524,7 @@ export class SyncOptions {
     startMessageSeq: number = 0 // 开始消息列号（结果包含start_message_seq的消息）
     endMessageSeq: number = 0 //  结束消息列号（结果不包含end_message_seq的消息）0表示不限制
     limit: number = 30 // 每次限制数量
-    pullMode: PullMode = PullMode.PullModeDown // 拉取模式 0:向下拉取 1:向上拉取
+    pullMode: PullMode = PullMode.Down // 拉取模式 0:向下拉取 1:向上拉取
 }
 
 

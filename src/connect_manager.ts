@@ -123,20 +123,19 @@ export class ConnectManager {
             const connectPacket = new ConnectPacket();
             connectPacket.clientKey = pubKey;
             connectPacket.version = 0x5;
+            connectPacket.deviceFlag = 0x1; // 0: app 1. web
             const deviceID = Guid.create().toString().replace(/-/g, "")
             connectPacket.deviceID = deviceID + "W";
             connectPacket.clientTimestamp = new Date().getTime();
             connectPacket.uid = WKSDK.shared().config.uid || '';
             connectPacket.token = WKSDK.shared().config.token || '';
             const data = self.getProto().encode(connectPacket);
+
+            console.log("connectPacket--->",connectPacket.deviceFlag)
             this.send(data);
         }
 
         this.ws.onmessage = (e) => {
-
-            console.log("e.data--->",e.data)
-            const dd =new ArrayBuffer(1)
-            
              self.unpacket(new Uint8Array(e.data),(packets)=>{
                  if(packets.length>0) {
                      for (const packetData of packets) {
