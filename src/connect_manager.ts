@@ -283,12 +283,10 @@ export class ConnectManager {
             return data;
         }else {
             if (fixedHeaderLength + remLengthLength + remLength == length) {
-                console.log("刚好一个包")
                 // 刚好一个包
                 dataCallback(data)
                 return [];
             }else {
-                console.log("粘包了...")
                 // 粘包  大于1个包
                 const packetLength = fixedHeaderLength + remLengthLength + remLength;
                 dataCallback(data.slice(0,packetLength))
@@ -298,9 +296,7 @@ export class ConnectManager {
     }
 
     onPacket(data: Uint8Array) {
-        console.log('收到包数据->', data);
         const p = this.getProto().decode(data);
-        console.log('收到包->', p);
         if (p.packetType === PacketType.CONNACK) {
             const connackPacket = p as ConnackPacket;
             if (connackPacket.reasonCode === 1) {

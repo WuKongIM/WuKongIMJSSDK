@@ -10,15 +10,15 @@ import { Convert } from './convert';
 import { nextTick } from 'process';
 const router = useRouter();
 const chatRef = ref<HTMLElement | null>(null)
-const p2p = ref(true)
 const showSettingPanel = ref(false)
 const title = ref("")
 const text = ref("")
-const channelID = ref("")
-const to = ref(new Channel("", 0))
+const applyName = ref<string>() // 请求聊天的人名字
+
+const channelID = ref("") // 设置聊天的频道ID
+const p2p = ref(true) // 是否是单聊
+const to = ref(new Channel("", 0)) // 对方的频道信息
 const placeholder = ref("请输入对方登录名")
-const pulluping = ref(false) // 上拉中
-const pullupFinished = ref(false) // 上拉完成
 const pulldowning = ref(false) // 下拉中
 const pulldownFinished = ref(false) // 下拉完成
 
@@ -90,9 +90,6 @@ const connectIM = (addr: string) => {
 
     // 监听消息
     WKSDK.shared().chatManager.addMessageListener((msg) => {
-        if (to.value.channelID != msg.channel.channelID || to.value.channelType != msg.channel.channelType) {
-            return
-        }
         messages.value.push(msg)
         scrollBottom()
     })
@@ -111,6 +108,9 @@ const connectIM = (addr: string) => {
 }
 
 const onSend = () => {
+    if(!text.value||text.value.trim() === "") {
+        return
+    }
     if (to.value && to.value.channelID != "") {
         let t = new MessageText(text.value)
         WKSDK.shared().chatManager.send(t, to.value)
@@ -150,7 +150,7 @@ const pullLast = async () => {
     pulldowning.value = true
     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
         limit: 15, startMessageSeq: 0, endMessageSeq: 0,
-        pullMode: PullMode.PullModeUp
+        pullMode: PullMode.Up
     })
     pulldowning.value = false
     if (msgs && msgs.length > 0) {
@@ -162,22 +162,22 @@ const pullLast = async () => {
 
 }
 
-const pullup = async () => {
+// const pullup = async () => {
 
-    if (messages.value.length == 0) {
-        return
-    }
-    const lastMsg = messages.value[messages.value.length - 1]
-    const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
-        limit: 15, startMessageSeq: lastMsg.messageSeq, endMessageSeq: 0,
-        pullMode: PullMode.PullModeUp
-    })
-    if (msgs && msgs.length > 0) {
-        msgs.forEach((m) => {
-            messages.value.push(m)
-        })
-    }
-}
+//     if (messages.value.length == 0) {
+//         return
+//     }
+//     const lastMsg = messages.value[messages.value.length - 1]
+//     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
+//         limit: 15, startMessageSeq: lastMsg.messageSeq, endMessageSeq: 0,
+//         pullMode: PullMode.Up
+//     })
+//     if (msgs && msgs.length > 0) {
+//         msgs.forEach((m) => {
+//             messages.value.push(m)
+//         })
+//     }
+// }
 
 const pullDown = async () => {
     if (messages.value.length == 0) {
@@ -191,7 +191,7 @@ const pullDown = async () => {
     const limit = 15
     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
         limit: limit, startMessageSeq: firstMsg.messageSeq - 1, endMessageSeq: 0,
-        pullMode: PullMode.PullModeDown
+        pullMode: PullMode.Down
     })
     if (msgs.length < limit) {
         pulldownFinished.value = true
@@ -226,11 +226,13 @@ const settingOKClick = () => {
     }
     showSettingPanel.value = false
 
+    messages.value = []
+
     pullLast() // 拉取最新消息
 }
 
 const joinChannel = () => {
-    APIClient.shared.post('/channel', {
+    APIClient.shared.post('/channel/subscriber_add', {
         channel_id: to.value.channelID,
         channel_type: to.value.channelType,
         subscribers: [WKSDK.shared().config.uid]
@@ -271,6 +273,7 @@ const handleScroll = (e: any) => {
         })
     }
 }
+
 
 // const sendInputFocus = () => {
 //     document.body.addEventListener("touchmove", stop, {
@@ -341,6 +344,7 @@ const handleScroll = (e: any) => {
             </div>
         </div>
     </transition>
+ 
 </template>
 
 <style scoped>
