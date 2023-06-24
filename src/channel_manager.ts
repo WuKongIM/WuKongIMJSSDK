@@ -249,7 +249,7 @@ export class ChannelManager {
         let exist = false
         if (subscriberContext.listenerStates.length > 0) {
             for (const listenerState of subscriberContext.listenerStates) {
-                if (listenerState.action == SubscribeAction.subscribe) {
+                if (listenerState.action === SubscribeAction.subscribe) {
                     listenerState.handleOk = false
                     listenerState.listener = listener
                     listenerState.options = subscribeOpts
@@ -305,7 +305,7 @@ export class ChannelManager {
         let exist = false
         if (subscriberContext.listenerStates.length > 0) {
             for (const listenerState of subscriberContext.listenerStates) {
-                if (listenerState.action == SubscribeAction.unsubscribe) {
+                if (listenerState.action === SubscribeAction.unsubscribe) {
                     listenerState.handleOk = false
                     listenerState.listener = listener
                     exist = true
@@ -340,7 +340,7 @@ export class ChannelManager {
                                 continue;
                             }
                             listenerState.handleOk = true;
-                            if (listenerState.listener && listenerState.action == SubscribeAction.subscribe) {
+                            if (listenerState.listener && listenerState.action === SubscribeAction.subscribe) {
                                 const subscribeListener = listenerState.listener as SubscribeListener
                                 subscribeListener(undefined, ack.reasonCode)
                             }
@@ -353,7 +353,7 @@ export class ChannelManager {
                                 continue;
                             }
                             listenerState.handleOk = true;
-                            if (listenerState.listener && listenerState.action == SubscribeAction.unsubscribe) {
+                            if (listenerState.listener && listenerState.action === SubscribeAction.unsubscribe) {
                                 const unsubscribeListener = listenerState.listener as UnsubscribeListener
                                 unsubscribeListener(ack.reasonCode)
                             }
