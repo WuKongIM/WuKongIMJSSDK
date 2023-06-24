@@ -6,6 +6,7 @@ import { SecurityManager } from "./security";
 import { Guid } from "./guid";
 
 import * as buffer from "buffer"
+import { WKWebsocket } from "./websocket";
 
 // import * as SignalClient from '@signalapp/signal-client';
 export enum ConnectStatus {
@@ -19,7 +20,7 @@ export enum ConnectStatus {
 export type ConnectStatusListener = (status: ConnectStatus, reasonCode?: number) => void;
 
 export class ConnectManager {
-    ws?: WebSocket;
+    ws?: WKWebsocket;
     status: ConnectStatus = ConnectStatus.Disconnect;  // 连接状态
     connectStatusListeners: ConnectStatusListener[] = new Array(); // 连接状态监听
 
@@ -91,7 +92,7 @@ export class ConnectManager {
 
     onlyConnect() {
 
-        if (this.ws?.readyState === WebSocket.CONNECTING && this.status === ConnectStatus.Connecting) {
+        if (this.status === ConnectStatus.Connecting) {
             console.log('已在连接中，不再进行连接.');
             return;
         }
@@ -107,12 +108,12 @@ export class ConnectManager {
     }
 
     connectWithAddr(addr: string) {
+        console.log("connectWithAddr--->")
         this.status = ConnectStatus.Connecting;
-        this.ws = new WebSocket(addr);
-        this.ws.binaryType = 'arraybuffer';
+        this.ws = new WKWebsocket(addr);
         const self = this;
-        this.ws.onopen = async function () {
-
+        this.ws.onopen(() => {
+            console.log('onopen...');
             self.tempBufferData = new Array<number>() // 重置缓存
 
             const seed = Uint8Array.from(self.stringToUint(Guid.create().toString().replace(/-/g, "")))
@@ -130,20 +131,20 @@ export class ConnectManager {
             connectPacket.uid = WKSDK.shared().config.uid || '';
             connectPacket.token = WKSDK.shared().config.token || '';
             const data = self.getProto().encode(connectPacket);
-            this.send(data);
-        }
+            self.ws?.send(data);
+        })
 
-        this.ws.onmessage = (e) => {
-            self.unpacket(new Uint8Array(e.data), (packets) => {
+        this.ws.onmessage((data: any) => {
+            self.unpacket(new Uint8Array(data), (packets) => {
                 if (packets.length > 0) {
                     for (const packetData of packets) {
                         self.onPacket(new Uint8Array(packetData));
                     }
                 }
             })
-        };
-        this.ws.onclose = (params) => {
-            console.log('连接关闭！', params);
+        });
+        this.ws.onclose((e)=>{
+            console.log('连接关闭！', e);
             if (this.status !== ConnectStatus.Disconnect) {
                 this.status = ConnectStatus.Disconnect;
                 this.notifyConnectStatusListeners(0);
@@ -152,9 +153,9 @@ export class ConnectManager {
             if (self.needReconnect) {
                 this.reConnect();
             }
-        }
-        this.ws.onerror = (params) => {
-            console.log('连接出错！', params);
+        })
+        this.ws.onerror((e)=>{
+            console.log('连接出错！', e);
             if (this.status !== ConnectStatus.Disconnect) {
                 this.status = ConnectStatus.Disconnect;
                 this.notifyConnectStatusListeners(0);
@@ -162,7 +163,7 @@ export class ConnectManager {
             if (self.needReconnect) {
                 this.reConnect();
             }
-        };
+        });
     }
 
     /* tslint:disable */
@@ -177,7 +178,7 @@ export class ConnectManager {
     }
 
     connected() {
-        return this.ws?.readyState === WebSocket.OPEN
+        return this.status == ConnectStatus.Connected
     }
 
     disconnect() {
@@ -191,6 +192,8 @@ export class ConnectManager {
         if (this.ws) {
             this.ws.close();
         }
+        this.status = ConnectStatus.Disconnect;
+
     }
 
     // 重连
@@ -205,7 +208,10 @@ export class ConnectManager {
         }
         const self = this;
         this.reConnectTimeout = setTimeout(() => {
-            this.ws = undefined;
+            if (this.ws) {
+                this.ws.close();
+                this.ws = undefined;
+            }
             self.onlyConnect();
             this.lockReconnect = false;
         }, 3000);
@@ -300,7 +306,7 @@ export class ConnectManager {
             if (connackPacket.reasonCode === 1) {
                 console.log('连接成功！');
 
-                WKSDK.shared().channelManager.resetSubscribeState() // 重置订阅状态
+                WKSDK.shared().channelManager.reSubscribe() // 重置订阅状态
                 this.status = ConnectStatus.Connected;
                 this.pingRetryCount = 0;
                 // 连接成功
@@ -319,9 +325,6 @@ export class ConnectManager {
                 } else {
                     SecurityManager.shared().aesIV = connackPacket.salt;
                 }
-
-
-
                 WKSDK.shared().chatManager.flushSendingQueue() // 将发送队列里的消息flush出去
             } else {
                 console.log('连接失败！错误->', connackPacket.reasonCode);
@@ -340,8 +343,8 @@ export class ConnectManager {
             this.notifyConnectStatusListeners(disconnectPacket.reasonCode);
 
         } else if (p.packetType === PacketType.SUBACK) { // 订阅回执
-            console.log("订阅回执-->")
             const subackPacket = (p as SubackPacket)
+            console.log("订阅回执-->",subackPacket.action)
             WKSDK.shared().channelManager.handleSuback(subackPacket)
         }
 

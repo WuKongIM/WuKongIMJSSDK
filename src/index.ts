@@ -93,7 +93,7 @@ export default class WKSDK {
         this.channelManager.onSubscribe(channel, listener,...opts)
     }
     // 取消订阅
-    onUnsubscribe(channel: Channel, listener?: UnsubscribeListener) {
+    onUnsubscribe(channel: Channel|string, listener?: UnsubscribeListener) {
         this.channelManager.onUnsubscribe(channel, listener)
     }
 

@@ -193,6 +193,7 @@ export class RecvackPacket extends Packet {
 
 export class SubPacket extends Packet {
   setting!: number // 设置
+  clientMsgNo!: string // 客户端唯一消息编号
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
   action = 0; // 0:订阅 1:取消订阅
@@ -203,6 +204,7 @@ export class SubPacket extends Packet {
 }
 
 export class SubackPacket extends Packet {
+  clientMsgNo!: string // 客户端唯一消息编号
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
   action = 0; // 0:订阅 1:取消订阅
@@ -319,6 +321,7 @@ export default class Proto implements IProto {
   encodeSub(packet: SubPacket) {
     const enc = new Encoder();
     enc.writeByte(packet.setting)
+    enc.writeString(packet.clientMsgNo)
     enc.writeString(packet.channelID)
     enc.writeByte(packet.channelType)
     enc.writeByte(packet.action)
@@ -329,6 +332,7 @@ export default class Proto implements IProto {
   decodeSuback(f: Packet, decode: Decoder) {
     const p = new SubackPacket();
     p.from(f);
+    p.clientMsgNo = decode.readString()
     p.channelID = decode.readString();
     p.channelType = decode.readByte();
     p.action = decode.readByte();

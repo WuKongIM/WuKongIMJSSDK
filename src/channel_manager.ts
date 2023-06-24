@@ -38,9 +38,9 @@ export class ChannelManager {
     public static shared() {
         if (!this.instance) {
             this.instance = new ChannelManager();
-            this.instance.subscriberContextTick = window.setInterval(() => {
-                this.instance.executeSubscribeContext();
-            }, 2000)
+            // this.instance.subscriberContextTick = window.setInterval(() => {
+            //     this.instance.executeSubscribeContext();
+            // }, 2000)
         }
 
         return this.instance;
@@ -226,14 +226,13 @@ export class ChannelManager {
                 opt(subscribeOpts)
             }
         }
-
         // 频道
         let channel: Channel
-        let channelData:any
+        let channelData: any
         let channelType = ChannelTypeData
         if (ch instanceof Channel) {
             channelType = ch.channelType
-             channelData = this.parseChannelURL(ch.channelID)
+            channelData = this.parseChannelURL(ch.channelID)
         } else {
             channelData = this.parseChannelURL(ch)
         }
@@ -247,8 +246,22 @@ export class ChannelManager {
             subscriberContext = new SubscribeContext(channel)
             this.subscriberContexts.push(subscriberContext)
         }
-        subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.subscribe, listener, subscribeOpts))
-
+        let exist = false
+        if (subscriberContext.listenerStates.length > 0) {
+            for (const listenerState of subscriberContext.listenerStates) {
+                if (listenerState.action == SubscribeAction.subscribe) {
+                    listenerState.handleOk = false
+                    listenerState.listener = listener
+                    listenerState.options = subscribeOpts
+                    exist = true
+                    break
+                }
+            }
+        }
+        if (!exist) {
+            subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.subscribe, listener, subscribeOpts))
+        }
+        console.log("onSubscribe-->", subscriberContext.listenerStates.length)
         this.executeSubscribeContext()
     }
 
@@ -270,23 +283,51 @@ export class ChannelManager {
         }
     }
 
-    onUnsubscribe(channel: Channel, listener?: UnsubscribeListener) {
+    onUnsubscribe(ch: Channel | string, listener?: UnsubscribeListener) {
+        // 频道
+        let channel: Channel
+        let channelData: any
+        let channelType = ChannelTypeData
+        if (ch instanceof Channel) {
+            channelType = ch.channelType
+            channelData = this.parseChannelURL(ch.channelID)
+        } else {
+            channelData = this.parseChannelURL(ch)
+        }
+        channel = new Channel(channelData.channelID, channelType)
+
         let subscriberContext = this.getSubscribeContext(channel)
         if (!subscriberContext) {
             subscriberContext = new SubscribeContext(channel)
             this.subscriberContexts.push(subscriberContext)
         }
-        subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.unsubscribe, listener))
 
+        let exist = false
+        if (subscriberContext.listenerStates.length > 0) {
+            for (const listenerState of subscriberContext.listenerStates) {
+                if (listenerState.action == SubscribeAction.unsubscribe) {
+                    listenerState.handleOk = false
+                    listenerState.listener = listener
+                    exist = true
+                    break
+                }
+            }
+        }
+        if (!exist) {
+            subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.unsubscribe, listener))
+        }
         this.executeSubscribeContext()
     }
 
-    resetSubscribeState() {
+    // 重新订阅
+    reSubscribe() {
         for (const subscriberContext of this.subscriberContexts) {
             for (const listenerState of subscriberContext.listenerStates) {
                 listenerState.handleOk = false;
+                listenerState.sending = false
             }
         }
+        this.executeSubscribeContext()
     }
 
     handleSuback(ack: SubackPacket) {
@@ -299,8 +340,10 @@ export class ChannelManager {
                                 continue;
                             }
                             listenerState.handleOk = true;
-                            const subscribeListener = listenerState.listener as SubscribeListener
-                            subscribeListener(undefined, ack.reasonCode)
+                            if (listenerState.listener && listenerState.action == SubscribeAction.subscribe) {
+                                const subscribeListener = listenerState.listener as SubscribeListener
+                                subscribeListener(undefined, ack.reasonCode)
+                            }
                         }
                     }
                 } else {
@@ -310,8 +353,10 @@ export class ChannelManager {
                                 continue;
                             }
                             listenerState.handleOk = true;
-                            const unsubscribeListener = listenerState.listener as UnsubscribeListener
-                            unsubscribeListener(ack.reasonCode)
+                            if (listenerState.listener && listenerState.action == SubscribeAction.unsubscribe) {
+                                const unsubscribeListener = listenerState.listener as UnsubscribeListener
+                                unsubscribeListener(ack.reasonCode)
+                            }
                         }
                     }
                 }
@@ -320,12 +365,14 @@ export class ChannelManager {
 
         if (ack.action === SubscribeAction.unsubscribe) {
             for (let i = 0; i < this.subscriberContexts.length; i++) {
-                if (this.subscriberContexts[i].channel.channelID === ack.channelID && this.subscriberContexts[i].channel.channelType === ack.channelType) {
+                const subscriberContext = this.subscriberContexts[i]
+                if (subscriberContext.channel.channelID === ack.channelID && subscriberContext.channel.channelType === ack.channelType) {
                     this.subscriberContexts.splice(i, 1)
-                    break;
+                    continue
                 }
             }
         }
+        console.log("subscriberContexts--->",this.subscriberContexts.length)
     }
 
     private getSubscribeContext(channel: Channel): SubscribeContext | undefined {
@@ -341,9 +388,10 @@ export class ChannelManager {
         for (const subscriberContext of this.subscriberContexts) {
             if (subscriberContext && subscriberContext.listenerStates.length > 0) {
                 for (const listenerState of subscriberContext.listenerStates) {
-                    if (listenerState.handleOk) {
+                    if (listenerState.handleOk || listenerState.sending) {
                         continue;
                     }
+                    listenerState.sending = true
                     this.sendSubscribe(subscriberContext.channel, listenerState.action, listenerState.options)
                 }
 
@@ -352,6 +400,8 @@ export class ChannelManager {
     }
 
     private sendSubscribe(channel: Channel, action: SubscribeAction, opts?: SubscribeOptions) {
+
+        console.log("sendSubscribe---->", action)
         const s = new SubPacket()
         s.channelID = channel.channelID
         s.channelType = channel.channelType

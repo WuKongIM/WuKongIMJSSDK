@@ -713,6 +713,7 @@ export class ListenerState {
     action!: SubscribeAction
     listener?: SubscribeListener | UnsubscribeListener
     options?: SubscribeOptions
+    sending = false // 是否将要发送
     handleOk: boolean = false // 是否已处理
     constructor(action: SubscribeAction, listener?: SubscribeListener | UnsubscribeListener, options?: SubscribeOptions) {
         this.listener = listener
