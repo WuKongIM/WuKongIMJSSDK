@@ -8,6 +8,8 @@ import { MessageContentType } from "./const"
 export const ChannelTypePerson = 1;
 // 群聊频道
 export const ChannelTypeGroup = 2;
+// 数据频道
+export const ChannelTypeData = 7;
 
 export class Channel {
     channelID!: string;
@@ -99,7 +101,7 @@ export class Message {
     public static fromSendPacket(sendPacket: SendPacket, content?: MessageContent): Message {
         const m = new Message()
         m.header.reddot = true
-        m.setting =Setting.fromUint8(sendPacket.setting)
+        m.setting = Setting.fromUint8(sendPacket.setting)
         m.clientMsgNo = sendPacket.clientMsgNo
         m.clientSeq = sendPacket.clientSeq
         m.fromUID = sendPacket.fromUID
@@ -125,7 +127,7 @@ export class Message {
     fromUID!: string; // 发送者uid
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
-    content!: MessageContent; // 消息负载
+    content!: MessageContent | any; // 消息负载
     status!: MessageStatus; // 消息状态 1.成功 其他失败
     voicePlaying: boolean = false; // 语音是否在播放中 （语音消息特有）
     voiceReaded: boolean = false; // 语音消息是否已读
@@ -196,7 +198,7 @@ export class MessageContent {
         const contentObj = this.encodeJSON()
         contentObj.type = this.contentType
         if (this.mention) {
-            const mentionObj:any = {}
+            const mentionObj: any = {}
             if (this.mention.all) {
                 mentionObj["all"] = 1
             }
@@ -459,7 +461,7 @@ export class Reply {
     content!: MessageContent
 
     public encode() {
-        const rep:any = {
+        const rep: any = {
             "message_id": this.messageID,
             "message_seq": this.messageSeq,
             "from_uid": this.fromUID,
@@ -663,3 +665,78 @@ export class CMDContent extends MessageContent {
         return MessageContentType.cmd
     }
 }
+
+export class SubscribeOptions {
+    param?: any
+}
+
+export type SubscribeOption = (opts: SubscribeOptions) => void
+
+
+export enum SubscribeAction {
+    subscribe = 0, // 订阅
+    unsubscribe = 1 // 取消订阅
+}
+
+export enum ReasonCode {
+    unknown = 0, // 成功
+    success = 1, // 成功
+    authFail = 2, // 认证失败
+    subscriberNotExist = 3, // 订阅者不存在
+    reasonInBlacklist = 4, // 订阅者在黑名单中
+    reasonChannelNotExist = 5, // 频道不存在
+    reasonUserNotOnNode = 6, // 用户不在节点上
+    reasonSenderOffline = 7, // 发送者不在线
+    msgKeyError = 8, // 消息key错误
+    payloadDecodeError = 9, // 消息内容错误
+    forwardSendPacketError = 10, // 转发发送包失败
+    notAllowSend = 11, // 不允许发送
+    connectKick = 12, // 连接被踢
+    notInWhitelist = 13, // 不在白名单
+    queryTokenError = 14, // 查询token错误
+    systemError = 15, // 系统错误
+    channelIDError = 16, // 频道ID错误
+    nodeMatchError = 17, // 节点匹配错误
+    nodeNotMatch = 18, // 节点不匹配
+    ban = 19, // 禁言
+    notSupportHeader = 20, // 不支持的header
+    clientKeyIsEmpty = 21, // 客户端key为空
+    rateLimit = 22, // 限流
+    notSupportChannelType = 23, // 不支持的频道类型
+
+}
+
+export type SubscribeListener = (msg?: Message, reasonCode?: ReasonCode) => void;
+export type UnsubscribeListener = (reasonCode?: ReasonCode) => void;
+
+export class ListenerState {
+    action!: SubscribeAction
+    listener?: SubscribeListener | UnsubscribeListener
+    options?: SubscribeOptions
+    handleOk: boolean = false // 是否已处理
+    constructor(action: SubscribeAction, listener?: SubscribeListener | UnsubscribeListener, options?: SubscribeOptions) {
+        this.listener = listener
+        this.options = options
+        this.action = action
+    }
+}
+
+export class SubscribeContext {
+    channel!: Channel
+    listenerStates = new Array<ListenerState>()
+    constructor(channel: Channel) {
+        this.channel = channel
+    }
+}
+
+
+export class SubscribeConfig {
+
+    withParam(param: any): SubscribeOption {
+        return (opts: SubscribeOptions) => {
+            opts.param = param
+        }
+    }
+}
+
+export const subscribeConfig = new SubscribeConfig()

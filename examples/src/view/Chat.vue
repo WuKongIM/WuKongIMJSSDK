@@ -38,7 +38,11 @@ APIClient.shared.get('/route', {
     param: { uid: router.currentRoute.value.query.uid }
 }).then((res) => {
     console.log(res)
-    connectIM(res.ws_addr)
+    let addr = res.wss_addr
+    if(!addr || addr === "") {
+        addr = res.ws_addr
+    }
+    connectIM(addr)
 
 }).catch((err) => {
     console.log(err)
@@ -410,7 +414,7 @@ const handleScroll = (e: any) => {
     height: calc(100vh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     /* header + footer */
     /* header height */
-    margin-top: 60px;
+    margin-top: calc(60px + env(safe-area-inset-top) );
     /* padding-top: 60px; */
     /* padding-bottom: 60px; */
     overflow-y: auto;

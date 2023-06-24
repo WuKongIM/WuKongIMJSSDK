@@ -1,14 +1,12 @@
 import { MessageContentType } from "./const";
 import { ConnectManager } from "./connect_manager";
 import { ChatManager } from "./chat_manager";
-import Proto, { IProto } from "./proto";
-import { Provider } from "./provider";
 import { ChannelManager } from "./channel_manager";
 import { TaskManager } from "./task";
 import { ConversationManager } from "./conversation_manager";
 import { SecurityManager } from "./security";
 
-import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, MessageContentManager,CMDContent, MessageSignalContent, MessageText, SystemContent } from "./model";
+import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, MessageContentManager, CMDContent, MessageSignalContent, MessageText, SystemContent, SubscribeOption, SubscribeListener, UnsubscribeListener } from "./model";
 import { ReminderManager } from "./reminder_manager";
 import { WKConfig } from "./config";
 import { ReceiptManager } from "./receipt_manager";
@@ -24,7 +22,7 @@ export default class WKSDK {
     channelManager!: ChannelManager
     taskManager!: TaskManager
     conversationManager!: ConversationManager
-    reminderManager!:ReminderManager
+    reminderManager!: ReminderManager
     securityManager!: SecurityManager
     receiptManager!: ReceiptManager
     private static instance: WKSDK
@@ -40,7 +38,7 @@ export default class WKSDK {
     private init() {
         this.config = new WKConfig()
         this.taskManager = new TaskManager()
-        this.messageContentManager =  MessageContentManager.shared()
+        this.messageContentManager = MessageContentManager.shared()
         this.connectManager = ConnectManager.shared()
         this.chatManager = ChatManager.shared()
         this.channelManager = ChannelManager.shared()
@@ -61,8 +59,8 @@ export default class WKSDK {
         })
 
         // 注册文本消息
-        this.register(MessageContentType.text,  ()=> new MessageText())
-        this.register(MessageContentType.signalMessage,  ()=> new MessageSignalContent())
+        this.register(MessageContentType.text, () => new MessageText())
+        this.register(MessageContentType.signalMessage, () => new MessageSignalContent())
     }
     // 注册消息正文
     register(contentType: number, handler: (contentType?: number) => MessageContent) {
@@ -86,15 +84,25 @@ export default class WKSDK {
     connect() {
         this.connectManager.connect()
     }
+    // 断开链接
     disconnect() {
         this.connectManager.disconnect()
     }
+    // 订阅频道
+    onSubscribe(channel: Channel|string, listener: SubscribeListener,...opts :SubscribeOption[]) {
+        this.channelManager.onSubscribe(channel, listener,...opts)
+    }
+    // 取消订阅
+    onUnsubscribe(channel: Channel, listener?: UnsubscribeListener) {
+        this.channelManager.onUnsubscribe(channel, listener)
+    }
 
-    newMessageText(text:string) {
+
+    newMessageText(text: string) {
         return new MessageText(text)
     }
     newChannel(channelID: string, channelType: number) {
-        return new Channel(channelID,channelType)
+        return new Channel(channelID, channelType)
     }
     newMessage() {
         return new Message()

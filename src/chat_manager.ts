@@ -47,8 +47,6 @@ export class ChatManager {
     async onPacket(packet: Packet) {
         if (packet instanceof RecvPacket) {
             const recvPacket = packet as RecvPacket
-
-
             const actMsgKey = SecurityManager.shared().encryption(recvPacket.veritifyString)
             const actMsgKeyMD5 = Md5.init(actMsgKey)
             if (actMsgKeyMD5 !== recvPacket.msgKey) {
@@ -66,6 +64,7 @@ export class ChatManager {
                 return;
             }
             this.notifyMessageListeners(message);
+            WKSDK.shared().channelManager.notifySubscribeIfNeed(message); // 通知指定的订阅者
         } else if (packet instanceof SendackPacket) {
             const sendack = packet as SendackPacket;
             this.sendingQueues.delete(sendack.clientSeq);

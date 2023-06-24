@@ -1,5 +1,6 @@
-import { Channel, ChannelInfo, Subscriber } from "./model";
+import { Channel, ChannelInfo, ChannelTypeData, ListenerState, Message, SubscribeAction, SubscribeContext, SubscribeListener, SubscribeOption, SubscribeOptions, Subscriber, UnsubscribeListener } from "./model";
 import WKSDK from "./index";
+import { SubPacket, SubackPacket } from "./proto";
 
 
 // 成员数据改变回调
@@ -7,12 +8,14 @@ export type SubscriberChangeListener = (channel: Channel) => void;
 export type ChannelInfoListener = (channelInfo: ChannelInfo) => void;
 
 
+
+
 export class ChannelManager {
     // 频道基础信息map
     channelInfocacheMap: any = {};
     // 请求队列
     requestQueueMap: Map<string, boolean> = new Map();
-    listeners: ((channelInfo:ChannelInfo) => void)[] = new Array(); // 监听改变
+    listeners: ((channelInfo: ChannelInfo) => void)[] = new Array(); // 监听改变
     // 频道成员缓存信息map
     subscribeCacheMap: Map<string, Subscriber[]> = new Map();
     // 成员请求队列
@@ -20,17 +23,26 @@ export class ChannelManager {
     // 成员改变监听
     subscriberChangeListeners: SubscriberChangeListener[] = new Array();
     // 频道删除监听
-    deleteChannelInfoListeners: ((channelInfo:ChannelInfo) => void)[] = new Array();
+    deleteChannelInfoListeners: ((channelInfo: ChannelInfo) => void)[] = new Array();
+
+    subscriberContexts: SubscribeContext[] = new Array(); // 订阅者上下文集合
+
+    subscriberContextTick: number = 0; // 订阅者上下文tick
+
 
     private constructor() {
-        
+
     }
 
     private static instance: ChannelManager
     public static shared() {
         if (!this.instance) {
             this.instance = new ChannelManager();
+            this.instance.subscriberContextTick = window.setInterval(() => {
+                this.instance.executeSubscribeContext();
+            }, 2000)
         }
+
         return this.instance;
     }
 
@@ -53,7 +65,7 @@ export class ChannelManager {
             }
         } finally {
             // 移除请求任务
-             this.requestQueueMap.delete(channelKey);
+            this.requestQueueMap.delete(channelKey);
         }
     }
     // 同步订阅者
@@ -63,9 +75,9 @@ export class ChannelManager {
         if (has) {
             return;
         }
-       
+
         try {
-            this.requestSubscribeQueueMap.set(channelKey,true);
+            this.requestSubscribeQueueMap.set(channelKey, true);
             let cacheSubscribers = this.subscribeCacheMap.get(channelKey);
             let version: number = 0;
             if (cacheSubscribers && cacheSubscribers.length > 0) {
@@ -92,14 +104,14 @@ export class ChannelManager {
                 }
             }
             this.subscribeCacheMap.set(channelKey, cacheSubscribers);
-             // 通知监听器
-             this.notifySubscribeChangeListeners(channel);
+            // 通知监听器
+            this.notifySubscribeChangeListeners(channel);
         } finally {
             this.requestSubscribeQueueMap.delete(channelKey)
         }
-       
+
     }
-    getChannelInfo(channel: Channel): ChannelInfo|undefined {
+    getChannelInfo(channel: Channel): ChannelInfo | undefined {
         return this.channelInfocacheMap[channel.getChannelKey()];
     }
     // 设置频道缓存
@@ -192,5 +204,162 @@ export class ChannelManager {
                 callback(channelInfoModel);
             });
         }
+    }
+
+    notifySubscribeIfNeed(msg: Message) {
+        const subscribeContext = this.getSubscribeContext(msg.channel)
+        if (subscribeContext && subscribeContext.listenerStates) {
+            for (const listenerState of subscribeContext.listenerStates) {
+                if (listenerState.listener && listenerState.action == SubscribeAction.subscribe) {
+                    (listenerState.listener as SubscribeListener)(msg)
+                }
+            }
+        }
+    }
+
+    onSubscribe(ch: Channel | string, listener: SubscribeListener, ...opts: SubscribeOption[]) {
+
+        // 参数设置
+        const subscribeOpts = new SubscribeOptions()
+        if (opts && opts.length > 0) {
+            for (const opt of opts) {
+                opt(subscribeOpts)
+            }
+        }
+
+        // 频道
+        let channel: Channel
+        let channelData:any
+        let channelType = ChannelTypeData
+        if (ch instanceof Channel) {
+            channelType = ch.channelType
+             channelData = this.parseChannelURL(ch.channelID)
+        } else {
+            channelData = this.parseChannelURL(ch)
+        }
+        channel = new Channel(channelData.channelID, channelType)
+
+        subscribeOpts.param = channelData.paramMap
+
+        // 设置上下文
+        let subscriberContext = this.getSubscribeContext(channel)
+        if (!subscriberContext) {
+            subscriberContext = new SubscribeContext(channel)
+            this.subscriberContexts.push(subscriberContext)
+        }
+        subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.subscribe, listener, subscribeOpts))
+
+        this.executeSubscribeContext()
+    }
+
+    parseChannelURL(channelUrl: string) {
+        const data = channelUrl.split("?")
+        if (data.length > 1) {
+            const query = data[1]
+            const paramMap = new Map<string, any>()
+            const querys = query.split("&")
+            for (const query of querys) {
+                const queryData = query.split("=")
+                if (queryData.length > 1) {
+                    paramMap.set(queryData[0], queryData[1])
+                }
+            }
+            return { channelID: data[0], paramMap: paramMap }
+        } else {
+            return { channelID: channelUrl, paramMap: new Map() }
+        }
+    }
+
+    onUnsubscribe(channel: Channel, listener?: UnsubscribeListener) {
+        let subscriberContext = this.getSubscribeContext(channel)
+        if (!subscriberContext) {
+            subscriberContext = new SubscribeContext(channel)
+            this.subscriberContexts.push(subscriberContext)
+        }
+        subscriberContext.listenerStates.push(new ListenerState(SubscribeAction.unsubscribe, listener))
+
+        this.executeSubscribeContext()
+    }
+
+    resetSubscribeState() {
+        for (const subscriberContext of this.subscriberContexts) {
+            for (const listenerState of subscriberContext.listenerStates) {
+                listenerState.handleOk = false;
+            }
+        }
+    }
+
+    handleSuback(ack: SubackPacket) {
+        for (const subscriberContext of this.subscriberContexts) {
+            if (ack.channelID === subscriberContext.channel.channelID && ack.channelType === subscriberContext.channel.channelType) {
+                if (ack.action === SubscribeAction.subscribe) {
+                    if (subscriberContext.listenerStates && subscriberContext.listenerStates.length > 0) {
+                        for (const listenerState of subscriberContext.listenerStates) {
+                            if (listenerState.handleOk) {
+                                continue;
+                            }
+                            listenerState.handleOk = true;
+                            const subscribeListener = listenerState.listener as SubscribeListener
+                            subscribeListener(undefined, ack.reasonCode)
+                        }
+                    }
+                } else {
+                    if (subscriberContext.listenerStates && subscriberContext.listenerStates.length > 0) {
+                        for (const listenerState of subscriberContext.listenerStates) {
+                            if (listenerState.handleOk) {
+                                continue;
+                            }
+                            listenerState.handleOk = true;
+                            const unsubscribeListener = listenerState.listener as UnsubscribeListener
+                            unsubscribeListener(ack.reasonCode)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (ack.action === SubscribeAction.unsubscribe) {
+            for (let i = 0; i < this.subscriberContexts.length; i++) {
+                if (this.subscriberContexts[i].channel.channelID === ack.channelID && this.subscriberContexts[i].channel.channelType === ack.channelType) {
+                    this.subscriberContexts.splice(i, 1)
+                    break;
+                }
+            }
+        }
+    }
+
+    private getSubscribeContext(channel: Channel): SubscribeContext | undefined {
+        for (const subscriberContext of this.subscriberContexts) {
+            if (subscriberContext.channel.channelID === channel.channelID && subscriberContext.channel.channelType === channel.channelType) {
+                return subscriberContext;
+            }
+        }
+        return undefined;
+    }
+
+    private executeSubscribeContext() {
+        for (const subscriberContext of this.subscriberContexts) {
+            if (subscriberContext && subscriberContext.listenerStates.length > 0) {
+                for (const listenerState of subscriberContext.listenerStates) {
+                    if (listenerState.handleOk) {
+                        continue;
+                    }
+                    this.sendSubscribe(subscriberContext.channel, listenerState.action, listenerState.options)
+                }
+
+            }
+        }
+    }
+
+    private sendSubscribe(channel: Channel, action: SubscribeAction, opts?: SubscribeOptions) {
+        const s = new SubPacket()
+        s.channelID = channel.channelID
+        s.channelType = channel.channelType
+        s.action = action
+        if (opts?.param) {
+            s.param = JSON.stringify(Object.fromEntries(opts?.param))
+        }
+
+        WKSDK.shared().connectManager.sendPacket(s)
     }
 }

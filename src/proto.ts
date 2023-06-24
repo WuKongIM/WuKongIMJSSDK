@@ -15,6 +15,8 @@ export enum PacketType {
   PING = 7, // ping请求
   PONG = 8, // 对ping请求的相应
   DISCONNECT = 9, // 请求断开连接
+  SUB = 10, // 订阅
+  SUBACK = 11, // 订阅确认
 }
 
 export class Setting {
@@ -115,7 +117,7 @@ export class SendPacket extends Packet {
   public get packetType() {
     return PacketType.SEND;
   }
-  public  veritifyString(payload:Uint8Array ) {
+  public veritifyString(payload: Uint8Array) {
     const payloadStr = this.uint8ArrayToString(payload)
     return `${this.clientSeq}${this.clientMsgNo}${this.channelID ?? ""}${this.channelType}${payloadStr}`
   }
@@ -189,8 +191,29 @@ export class RecvackPacket extends Packet {
   }
 }
 
+export class SubPacket extends Packet {
+  setting!: number // 设置
+  channelID!: string; // 频道ID
+  channelType!: number; // 频道类型
+  action = 0; // 0:订阅 1:取消订阅
+  param?: string // 参数
+  public get packetType() {
+    return PacketType.SUB;
+  }
+}
+
+export class SubackPacket extends Packet {
+  channelID!: string; // 频道ID
+  channelType!: number; // 频道类型
+  action = 0; // 0:订阅 1:取消订阅
+  reasonCode!: number;
+  public get packetType() {
+    return PacketType.SUBACK;
+  }
+}
+
 export interface IProto {
-  encode(f: Packet):any
+  encode(f: Packet): any
   decode(data: Uint8Array): Packet
 }
 
@@ -203,11 +226,13 @@ export default class Proto implements IProto {
     this.packetEncodeMap[PacketType.CONNECT] = this.encodeConnect;
     this.packetEncodeMap[PacketType.SEND] = this.encodeSend;
     this.packetEncodeMap[PacketType.RECVACK] = this.encodeRecvack;
+    this.packetEncodeMap[PacketType.SUB] = this.encodeSub;
     // 解码
     this.packetDecodeMap[PacketType.CONNACK] = this.decodeConnect;
     this.packetDecodeMap[PacketType.RECV] = this.decodeRecvPacket;
     this.packetDecodeMap[PacketType.SENDACK] = this.decodeSendackPacket;
     this.packetDecodeMap[PacketType.DISCONNECT] = this.decodeDisconnect;
+    this.packetDecodeMap[PacketType.SUBACK] = this.decodeSuback;
   }
   encode(f: Packet) {
     const enc = new Encoder();
@@ -267,7 +292,7 @@ export default class Proto implements IProto {
     if (!packet.clientMsgNo || packet.clientMsgNo === '') {
       packet.clientMsgNo = getUUID();
     }
-    enc.writeString(packet.clientMsgNo); 
+    enc.writeString(packet.clientMsgNo);
 
     // channel
     enc.writeString(packet.channelID);
@@ -289,6 +314,26 @@ export default class Proto implements IProto {
       enc.writeBytes(Array.from(payload))
     }
     return enc.w;
+  }
+
+  encodeSub(packet: SubPacket) {
+    const enc = new Encoder();
+    enc.writeByte(packet.setting)
+    enc.writeString(packet.channelID)
+    enc.writeByte(packet.channelType)
+    enc.writeByte(packet.action)
+    enc.writeString(packet.param||'')
+    return enc.w
+  }
+
+  decodeSuback(f: Packet, decode: Decoder) {
+    const p = new SubackPacket();
+    p.from(f);
+    p.channelID = decode.readString();
+    p.channelType = decode.readByte();
+    p.action = decode.readByte();
+    p.reasonCode = decode.readByte();
+    return p;
   }
 
   encodeRecvack(packet: RecvackPacket) {
