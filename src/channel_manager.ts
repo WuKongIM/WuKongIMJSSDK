@@ -210,7 +210,7 @@ export class ChannelManager {
         const subscribeContext = this.getSubscribeContext(msg.channel)
         if (subscribeContext && subscribeContext.listenerStates) {
             for (const listenerState of subscribeContext.listenerStates) {
-                if (listenerState.listener && listenerState.action == SubscribeAction.subscribe) {
+                if (listenerState.listener && listenerState.action === SubscribeAction.subscribe) {
                     (listenerState.listener as SubscribeListener)(msg)
                 }
             }
@@ -258,13 +258,13 @@ export class ChannelManager {
             const query = data[1]
             const paramMap = new Map<string, any>()
             const querys = query.split("&")
-            for (const query of querys) {
-                const queryData = query.split("=")
+            for (const q of querys) {
+                const queryData = q.split("=")
                 if (queryData.length > 1) {
                     paramMap.set(queryData[0], queryData[1])
                 }
             }
-            return { channelID: data[0], paramMap: paramMap }
+            return { channelID: data[0], paramMap }
         } else {
             return { channelID: channelUrl, paramMap: new Map() }
         }
