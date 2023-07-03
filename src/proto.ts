@@ -22,15 +22,35 @@ export enum PacketType {
 export class Setting {
   receiptEnabled: boolean = false // 消息回执是否开启
   topic: boolean = false // 是否存在话题
+  private _streamOn: boolean = false
+  private _streamNo: string = '' // 流号
+
+  public set streamNo(v: string) {
+    if (v && v !== '') {
+      this._streamOn = true
+    } else {
+      this._streamOn = false
+    }
+
+    this._streamNo = v
+  }
+  public get streamNo() {
+    return this._streamNo
+  }
+
+  public get streamOn(): boolean {
+    return this._streamOn
+  }
 
   public toUint8(): number {
-    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.topic) << 3
+    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.topic) << 3 | this.boolToInt(this.streamOn) << 2
   }
 
   public static fromUint8(v: number): Setting {
     let setting = new Setting()
     setting.receiptEnabled = (v >> 7 & 0x01) > 0
     setting.topic = (v >> 3 & 0x01) > 0
+    setting._streamOn = (v >> 2 & 0x01) > 0
     return setting
   }
 
@@ -106,9 +126,10 @@ export class DisconnectPacket extends Packet {
 // 发送包
 export class SendPacket extends Packet {
   /* tslint:disable-line */
-  setting!: number // 设置
+  setting!: Setting // 设置
   clientSeq!: number;
   clientMsgNo!: string; // 客户端唯一消息编号（用于消息去重）
+  streamNo!: string; // 流式编号
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
   fromUID!: string; // 发送UID
@@ -128,14 +149,22 @@ export class SendPacket extends Packet {
   }
 }
 
+export enum StreamFlag {
+  START = 0,
+  ING = 1,
+  END = 2,
+}
 // 收消息包
 export class RecvPacket extends Packet {
   /* tslint:disable-line */
-  setting!: number // 设置
+  setting!: Setting // 设置
   msgKey!: string // 用于验证此消息是否合法（仿中间人篡改）
   messageID!: string; // 消息ID
   messageSeq!: number; // 消息序列号
   clientMsgNo!: string // 客户端唯一消息编号
+  streamNo!: string // 流式编号
+  streamSeq!: number // 流式序列号
+  streamFlag!: StreamFlag // 流式标示
   timestamp!: number; // 消息时间戳
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
@@ -285,7 +314,7 @@ export default class Proto implements IProto {
   encodeSend(packet: SendPacket) {
     const enc = new Encoder();
     // setting
-    enc.writeByte(packet.setting)
+    enc.writeByte(packet.setting.toUint8())
 
     // messageID
     enc.writeInt32(packet.clientSeq);
@@ -296,6 +325,10 @@ export default class Proto implements IProto {
     }
     enc.writeString(packet.clientMsgNo);
 
+    if (packet.setting.streamOn) {
+      enc.writeString(packet.streamNo);
+    }
+
     // channel
     enc.writeString(packet.channelID);
     enc.writeByte(packet.channelType);
@@ -305,7 +338,7 @@ export default class Proto implements IProto {
     enc.writeString(Md5.init(msgKey))
 
     // topic
-    const setting = Setting.fromUint8(packet.setting)
+    const setting = packet.setting
     if (setting.topic) {
       enc.writeString(packet.topic || "")
     }
@@ -325,7 +358,7 @@ export default class Proto implements IProto {
     enc.writeString(packet.channelID)
     enc.writeByte(packet.channelType)
     enc.writeByte(packet.action)
-    enc.writeString(packet.param||'')
+    enc.writeString(packet.param || '')
     return enc.w
   }
 
@@ -365,16 +398,21 @@ export default class Proto implements IProto {
   decodeRecvPacket(f: Packet, decode: Decoder) {
     const p = new RecvPacket();
     p.from(f);
-    p.setting = decode.readByte()
+    p.setting = Setting.fromUint8(decode.readByte())
     p.msgKey = decode.readString()
     p.fromUID = decode.readString();
     p.channelID = decode.readString();
     p.channelType = decode.readByte();
     p.clientMsgNo = decode.readString();
+    if (p.setting.streamOn) {
+      p.streamNo = decode.readString();
+      p.streamSeq = decode.readInt32();
+      p.streamFlag = decode.readByte();
+    }
     p.messageID = decode.readInt64().toString();
     p.messageSeq = decode.readInt32();
     p.timestamp = decode.readInt32();
-    const setting = Setting.fromUint8(p.setting)
+    const setting = p.setting
     if (setting.topic) {
       p.topic = decode.readString()
     }

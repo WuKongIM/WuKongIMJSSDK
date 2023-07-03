@@ -108,7 +108,6 @@ export class ChatManager {
     async send(content: MessageContent, channel: Channel, setting?: Setting): Promise<Message> {
 
         const packet = this.getSendPacket(content, channel, setting)
-
         let opts = new Setting()
         if (setting) {
             opts = setting
@@ -131,9 +130,10 @@ export class ChatManager {
     }
     getSendPacket(content: MessageContent, channel: Channel, setting: Setting = new Setting()): SendPacket {
         const packet = new SendPacket();
-        packet.setting = setting.toUint8()
+        packet.setting = setting
         packet.reddot = true;
         packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}3`
+        packet.streamNo = setting.streamNo
         packet.clientSeq = this.getClientSeq()
         packet.fromUID = WKSDK.shared().config.uid || '';
         packet.channelID = channel.channelID;

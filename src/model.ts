@@ -1,4 +1,4 @@
-import { RecvPacket, SendPacket, Setting } from './proto';
+import { RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
 import WKSDK from './index';
 import { MessageContentType } from "./const"
 
@@ -87,10 +87,13 @@ export class Message {
             this.header.dup = recvPacket.dup
             this.header.noPersist = recvPacket.noPersist
             this.header.syncOnce = recvPacket.syncOnce
-            this.setting = Setting.fromUint8(recvPacket.setting)
+            this.setting = recvPacket.setting
             this.messageID = recvPacket.messageID
             this.messageSeq = recvPacket.messageSeq
             this.clientMsgNo = recvPacket.clientMsgNo
+            this.streamNo = recvPacket.streamNo
+            this.streamFlag = recvPacket.streamFlag
+            this.streamSeq = recvPacket.streamSeq
             this.fromUID = recvPacket.fromUID
             this.channel = new Channel(recvPacket.channelID, recvPacket.channelType)
             this.timestamp = recvPacket.timestamp
@@ -101,8 +104,9 @@ export class Message {
     public static fromSendPacket(sendPacket: SendPacket, content?: MessageContent): Message {
         const m = new Message()
         m.header.reddot = true
-        m.setting = Setting.fromUint8(sendPacket.setting)
+        m.setting = sendPacket.setting
         m.clientMsgNo = sendPacket.clientMsgNo
+        m.streamNo = sendPacket.streamNo
         m.clientSeq = sendPacket.clientSeq
         m.fromUID = sendPacket.fromUID
         m.channel = new Channel(sendPacket.channelID, sendPacket.channelType)
@@ -124,6 +128,10 @@ export class Message {
     messageID!: string; // 消息唯一ID
     messageSeq!: number; // 消息序列号
     clientMsgNo!: string // 客户端消息唯一编号
+    streamNo?: string // 流式编号
+    streamSeq?: number // 流式序列号
+    streamFlag!: StreamFlag // 流式标示
+    streams?: StreamItem[] // 流式数据
     fromUID!: string; // 发送者uid
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
@@ -145,6 +153,12 @@ export class Message {
         return this.content.contentType
     }
 
+    public get streamOn(): boolean {
+        if (this.streamNo && this.streamNo !== '') {
+            return true
+        }
+        return false
+    }
 }
 
 export class MessageExtra {
@@ -598,6 +612,27 @@ export class MessageText extends MessageContent {
 
 }
 
+export class MessageStream extends MessageContent {
+    data!: ArrayBuffer
+    constructor(data: ArrayBuffer) {
+        super()
+        this.data = data
+    }
+    public get contentType(): number {
+        return MessageContentType.stream
+    }
+    public decodeJSON(content: any) {
+        const dataBase64 = content["data"]
+        if (dataBase64 && dataBase64.length > 0) {
+            this.data = Buffer.from(dataBase64, 'base64')
+        }
+    }
+    public encodeJSON(): any {
+        const dataBase64 = Buffer.from(this.data).toString('base64')
+        return { data: dataBase64 }
+    }
+}
+
 export class MessageSignalContent extends MessageContent {
     public get contentType(): number {
         return MessageContentType.signalMessage
@@ -741,3 +776,10 @@ export class SubscribeConfig {
 }
 
 export const subscribeConfig = new SubscribeConfig()
+
+
+export class StreamItem {
+    clientMsgNo!: string
+    streamSeq!: number
+    content: MessageContent | any
+}

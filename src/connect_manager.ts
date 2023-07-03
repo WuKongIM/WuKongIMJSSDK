@@ -108,7 +108,6 @@ export class ConnectManager {
     }
 
     connectWithAddr(addr: string) {
-        console.log("connectWithAddr--->")
         this.status = ConnectStatus.Connecting;
         this.ws = new WKWebsocket(addr);
         const self = this;
@@ -123,8 +122,8 @@ export class ConnectManager {
 
             const connectPacket = new ConnectPacket();
             connectPacket.clientKey = pubKey;
-            connectPacket.version = 0x1;
-            connectPacket.deviceFlag = 0x1; // 0: app 1. web
+            connectPacket.version = WKSDK.shared().config.protoVersion;
+            connectPacket.deviceFlag = WKSDK.shared().config.deviceFlag;
             const deviceID = Guid.create().toString().replace(/-/g, "")
             connectPacket.deviceID = deviceID + "W";
             connectPacket.clientTimestamp = new Date().getTime();
