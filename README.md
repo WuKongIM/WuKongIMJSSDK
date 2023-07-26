@@ -36,6 +36,12 @@ npm publish
 npm i wukongimjssdk
 
 
+# 编译成普通的javascript
+
+## 安装
+
+yarn global add webpack
+
 ## 合并为一个js文件
 
 webpack --output-filename wkim.js

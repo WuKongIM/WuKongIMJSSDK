@@ -1,8 +1,10 @@
 {
-  "name": "wukongimjssdk",
-  "version": "1.0.5",
+  "name": "wukongimjssdkall",
+  "version": "1.0.0",
   "description": "",
-  "main": "lib/index.js",
+  "main": "lib/wukongimjssdk.cjs.js",
+  "module": "lib/wukongimjssdk.esm.js",
+  "browser": "lib/wukongimjssdk.umd.js",
   "types": "lib/index.d.ts",
   "directories": {
     "lib": "lib"
@@ -13,7 +15,8 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "build": "tsc",
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -21,12 +24,19 @@
   "author": "tangtao",
   "license": "ISC",
   "devDependencies": {
+    "@types/ms": "^0.7.31",
     "@types/node": "^16.9.1",
     "awesome-typescript-loader": "^5.2.1",
+    "rollup": "^2.79.1",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-typescript": "^1.0.1",
     "source-map-loader": "^0.2.4",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.1",
     "typescript": "^3.8.3",
-    "webpack": "^4.42.0",
-    "webpack-cli": "^3.3.11"
+    "webpack": "^4.42.0"
   },
   "dependencies": {
     "@types/bignumber.js": "^5.0.0",
