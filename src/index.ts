@@ -124,6 +124,16 @@ export default class WKSDK {
 
 
 
+export {default as WKSDK} from "./index"
+
+export * from "./model";
+export * from "./const";
+export * from "./conversation_manager";
+export * from "./connect_manager";
+export * from "./index"
+export * from "./proto"
+export * from "./chat_manager"
+
 // const self = WKSDK.shared();
 // window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象
 // export default self;
