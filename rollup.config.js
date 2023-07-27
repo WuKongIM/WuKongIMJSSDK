@@ -8,7 +8,7 @@ export default [
   {
     input: 'src/index.ts',
     output: {
-      name: 'howLongUntilLunch',
+      name: 'wk',
 			file: pkg.browser,
 			format: 'umd'
     },
