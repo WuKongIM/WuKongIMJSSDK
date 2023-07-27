@@ -38,3 +38,5 @@ npm i wukongimjssdk
 
 
 原生浏览器<script>的引入方式 使用lib/wukongimjssdk.umd.js 文件
+
+原生引入需要加前缀例如：`wk.WKSDK.shared()`

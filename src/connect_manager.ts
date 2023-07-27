@@ -1,4 +1,4 @@
-import WKSDK from "./index"
+import { WKSDK } from "./index"
 import { ConnackPacket, ConnectPacket, DisconnectPacket, IProto, Packet, PacketType, PingPacket, RecvackPacket, RecvPacket, SendPacket, SubackPacket } from "./proto";
 import { generateKeyPair, sharedKey } from 'curve25519-js';
 import { Md5 } from "md5-typescript";

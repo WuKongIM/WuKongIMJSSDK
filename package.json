@@ -1,6 +1,6 @@
 {
   "name": "wukongimjssdk",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "",
   "main": "lib/wukongimjssdk.cjs.js",
   "module": "lib/wukongimjssdk.esm.js",
@@ -32,22 +32,27 @@
   "author": "tangtao",
   "license": "ISC",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.3",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-typescript": "^11.1.2",
     "@types/ms": "^0.7.31",
     "@types/node": "^16.9.1",
     "awesome-typescript-loader": "^5.2.1",
+    "prettier": "^2.0.2",
     "rollup": "^2.79.1",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-builtins": "^2.1.2",
     "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-polyfill-node": "^0.12.0",
     "rollup-plugin-typescript2": "^0.35.0",
     "source-map-loader": "^0.2.4",
     "ts-node": "^10.9.1",
     "tslib": "^2.6.1",
-    "typescript": "^3.8.3",
-    "webpack": "^4.42.0",
-    "prettier": "^2.0.2",
     "tslint": "^6.1.0",
-    "tslint-config-prettier": "^1.18.0"
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.8.3",
+    "webpack": "^4.42.0"
   },
   "dependencies": {
     "@types/bignumber.js": "^5.0.0",
@@ -57,7 +62,6 @@
     "crypto-js": "^4.1.1",
     "curve25519-js": "^0.0.4",
     "md5-typescript": "^1.0.5"
-   
   },
   "files": [
     "lib/**/*"
