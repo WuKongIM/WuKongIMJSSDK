@@ -134,6 +134,7 @@ export * from "./index"
 export * from "./proto"
 export * from "./chat_manager"
 export * from "./task"
+export * from "./channel_manager"
 
 // const self = WKSDK.shared();
 // window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象
