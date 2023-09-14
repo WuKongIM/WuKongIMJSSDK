@@ -6,7 +6,7 @@ import { TaskManager } from "./task";
 import { ConversationManager } from "./conversation_manager";
 import { SecurityManager } from "./security";
 
-import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, MessageContentManager, CMDContent, MessageSignalContent, MessageText, SystemContent, SubscribeOption, SubscribeListener, UnsubscribeListener } from "./model";
+import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, MessageContentManager, CMDContent, MessageSignalContent, MessageText, SystemContent, SubscribeOption, SubscribeListener, UnsubscribeListener, MessageImage } from "./model";
 import { ReminderManager } from "./reminder_manager";
 import { WKConfig } from "./config";
 import { ReceiptManager } from "./receipt_manager";
@@ -60,6 +60,7 @@ export default class WKSDK {
 
         // 注册文本消息
         this.register(MessageContentType.text, () => new MessageText())
+        this.register(MessageContentType.image, () => new MessageImage())
         this.register(MessageContentType.signalMessage, () => new MessageSignalContent())
     }
     // 注册消息正文
@@ -135,6 +136,7 @@ export * from "./proto"
 export * from "./chat_manager"
 export * from "./task"
 export * from "./channel_manager"
+export * from "./provider"
 
 // const self = WKSDK.shared();
 // window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象

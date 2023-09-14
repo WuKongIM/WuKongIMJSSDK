@@ -16,6 +16,19 @@ export class ConversationManager {
     conversations: Conversation[] = new Array() // 最近会话列表
     openConversation?: Conversation // 当前打开的最近会话
     maxExtraVersion: number = 0// 最大扩展的版本号
+
+    private _noUpdateContentType: number[] = [] // 不更新的消息类型
+
+    addNoUpdateContentType(contentType: number) {
+        this._noUpdateContentType.push(contentType)
+    } 
+    removeNoUpdateContentType(contentType: number) {
+        const index = this._noUpdateContentType.indexOf(contentType)
+        if (index >= 0) {
+            this._noUpdateContentType.splice(index, 1)
+        }
+    }
+
     private static instance: ConversationManager
     public static shared() {
         if (!this.instance) {
@@ -26,6 +39,9 @@ export class ConversationManager {
 
     private constructor() {
         ChatManager.shared().addMessageListener((message: Message) => {
+            if (this._noUpdateContentType.indexOf(message.contentType) >= 0) {
+                return
+            }
             this.updateOrAddConversation(message)
         })
     }

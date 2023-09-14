@@ -56,7 +56,7 @@ export class ChatManager {
             recvPacket.payload = SecurityManager.shared().decryption(recvPacket.payload)
 
             // const setting = Setting.fromUint8(recvPacket.setting)
-           
+
             const message = new Message(recvPacket)
             this.sendRecvackPacket(recvPacket);
             if (message.contentType === MessageContentType.cmd) { // 命令类消息分流处理
@@ -81,11 +81,11 @@ export class ChatManager {
         return WKSDK.shared().config.provider.syncMessagesCallback!(channel, opts)
     }
 
-    async syncMessageExtras(channel: Channel,extraVersion:number) {
+    async syncMessageExtras(channel: Channel, extraVersion: number) {
         if (!WKSDK.shared().config.provider.syncMessageExtraCallback) {
             throw new Error("没有设置WKSDK.shared().config.provider.syncMessageExtraCallback")
         }
-       return WKSDK.shared().config.provider.syncMessageExtraCallback!(channel,extraVersion,100)
+        return WKSDK.shared().config.provider.syncMessageExtraCallback!(channel, extraVersion, 100)
     }
 
     sendRecvackPacket(recvPacket: RecvPacket) {
@@ -106,12 +106,13 @@ export class ChatManager {
      * @returns 完整消息对象
      */
     async send(content: MessageContent, channel: Channel, setting?: Setting): Promise<Message> {
+        const opts = new SendOptions()
+        opts.setting = setting || new Setting()
+        return this.sendWithOptions(content, channel, opts)
+    }
 
-        const packet = this.getSendPacket(content, channel, setting)
-        let opts = new Setting()
-        if (setting) {
-            opts = setting
-        }
+    async sendWithOptions(content: MessageContent, channel: Channel, opts: SendOptions) {
+        const packet = this.getSendPacketWithOptions(content, channel, opts)
 
         this.sendingQueues.set(packet.clientSeq, packet);
 
@@ -141,6 +142,22 @@ export class ChatManager {
         packet.payload = content.encode()
         return packet
     }
+    getSendPacketWithOptions(content: MessageContent, channel: Channel, opts: SendOptions = new SendOptions()): SendPacket {
+        const setting =  opts.setting || new Setting()
+        const packet = new SendPacket();
+        packet.reddot = opts.reddot;
+        packet.noPersist = opts.noPersist;
+        packet.setting = setting
+        packet.reddot = true;
+        packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}3`
+        packet.streamNo = setting.streamNo
+        packet.clientSeq = this.getClientSeq()
+        packet.fromUID = WKSDK.shared().config.uid || '';
+        packet.channelID = channel.channelID;
+        packet.channelType = channel.channelType
+        packet.payload = content.encode()
+        return packet
+    }
     getClientSeq() {
         return ++this.clientSeq;
     }
@@ -148,7 +165,7 @@ export class ChatManager {
     // 通知命令消息监听者
     notifyCMDListeners(message: Message) {
         if (this.cmdListeners) {
-            this.cmdListeners.forEach((listener: (message:Message) => void) => {
+            this.cmdListeners.forEach((listener: (message: Message) => void) => {
                 if (listener) {
                     listener(message);
                 }
@@ -198,7 +215,7 @@ export class ChatManager {
     // 通知消息状态改变监听者
     notifyMessageStatusListeners(sendackPacket: SendackPacket) {
         if (this.sendStatusListeners) {
-            this.sendStatusListeners.forEach((listener: (ack:SendackPacket) => void) => {
+            this.sendStatusListeners.forEach((listener: (ack: SendackPacket) => void) => {
                 if (listener) {
                     listener(sendackPacket);
                 }
@@ -234,7 +251,7 @@ export class ChatManager {
         for (const clientSeq of clientSeqArray) {
             const sendPacket = this.sendingQueues.get(clientSeq);
             if (sendPacket) {
-                console.log("重试消息---->",sendPacket)
+                console.log("重试消息---->", sendPacket)
                 WKSDK.shared().connectManager.sendPacket(sendPacket);
             }
         }
@@ -244,5 +261,12 @@ export class ChatManager {
     deleteMessageFromSendingQueue(clientSeq: number) {
         this.sendingQueues.delete(clientSeq)
     }
+
+}
+
+export class SendOptions {
+    setting: Setting = new Setting() // setting
+    noPersist: boolean = false // 是否不存储
+    reddot: boolean = true // 是否显示红点
 
 }

@@ -612,6 +612,33 @@ export class MessageText extends MessageContent {
 
 }
 
+export class MessageImage extends MediaMessageContent {
+    width!: number; // 图片宽度
+    height!: number; // 图片高度
+    url!: string; // 图片远程地址
+    constructor(file?: File, width?: number, height?: number) {
+        super();
+        this.file = file;
+        this.width = width || 0;
+        this.height = height || 0;
+    }
+    decodeJSON(content: any) {
+        this.width = content["width"] || 0
+        this.height = content["height"] || 0
+        this.url = content["url"] || ''
+        this.remoteUrl = this.url
+    }
+    encodeJSON() {
+        return { "width": this.width || 0, "height": this.height || 0, "url": this.remoteUrl || "" }
+    }
+    get contentType() {
+        return MessageContentType.image
+    }
+    get conversationDigest() {
+        return "[图片]"
+    }
+}
+
 export class MessageStream extends MessageContent {
     data!: ArrayBuffer
     constructor(data: ArrayBuffer) {
