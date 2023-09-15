@@ -324,7 +324,7 @@ export class Subscriber {
     version!: number; // 数据版本
     isDeleted!: boolean; // 是否已删除
     status!: number; // 订阅者状态
-    orgData: any; // 频道原生数据
+    orgData: any; // 第三方数据
 }
 
 

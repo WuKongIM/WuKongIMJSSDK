@@ -60,6 +60,7 @@ export default class WKSDK {
 
         // 注册文本消息
         this.register(MessageContentType.text, () => new MessageText())
+        // 注册图片消息
         this.register(MessageContentType.image, () => new MessageImage())
         this.register(MessageContentType.signalMessage, () => new MessageSignalContent())
     }
