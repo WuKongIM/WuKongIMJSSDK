@@ -1,7 +1,7 @@
 
 
 
-const platformObj: any = getPlatformObj() // 获取平台全局操作对象
+// const platformObj: any = getPlatformObj() // 获取平台全局操作对象
 
 declare const uni: any; // 定义uni 为全局对象
 declare const wx: any; // 定义wx为全局对象
@@ -23,11 +23,17 @@ export class WKWebsocket {
     addr!: string
     ws!: WebSocket | any
     destory: boolean = false
-    constructor(addr: string) {
+    platform:any
+    constructor(addr: string,platform?:any) {
         this.addr = addr
 
-        if(platformObj) {
-           this.ws = platformObj.connectSocket({
+        if(platform) {
+            this.platform = platform
+        }else {
+            this.platform = getPlatformObj()
+        }
+        if(this.platform) {
+           this.ws = this.platform.connectSocket({
                 url: addr,
                
                 complete: ()=> {
@@ -42,7 +48,7 @@ export class WKWebsocket {
     }
 
     onopen(callback: () => void) {
-        if (platformObj) {
+        if (this.platform) {
             this.ws.onOpen(() => {
                 if (this.destory) {
                     return
@@ -64,7 +70,7 @@ export class WKWebsocket {
     }
 
     onmessage(callback: ((ev: MessageEvent) => any) | null) {
-        if (platformObj) {
+        if (this.platform) {
             this.ws.onMessage((e) => {
                 if (this.destory) {
                     return
@@ -87,7 +93,7 @@ export class WKWebsocket {
     }
 
     onclose(callback: (e: CloseEvent) => void) {
-        if (platformObj) {
+        if (this.platform) {
             this.ws.onClose((params) => {
                 if (this.destory) {
                     return
@@ -110,7 +116,7 @@ export class WKWebsocket {
     }
 
     onerror(callback: (e: Event) => void) {
-        if (platformObj) {
+        if (this.platform) {
             this.ws.onError((e) => {
                 if (callback) {
                     callback(e)
@@ -129,7 +135,7 @@ export class WKWebsocket {
     }
 
     send(data: any) {
-        if (platformObj) {
+        if (this.platform) {
             if(data instanceof Uint8Array) {
                 this.ws.send({ data:data.buffer })
             }else {

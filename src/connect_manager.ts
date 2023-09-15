@@ -109,7 +109,7 @@ export class ConnectManager {
 
     connectWithAddr(addr: string) {
         this.status = ConnectStatus.Connecting;
-        this.ws = new WKWebsocket(addr);
+        this.ws = new WKWebsocket(addr,WKSDK.shared().config.platform);
         const self = this;
         this.ws.onopen(() => {
             console.log('onopen...');
