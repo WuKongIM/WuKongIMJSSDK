@@ -638,7 +638,7 @@ export class MessageImage extends MediaMessageContent {
     }
     encodeJSON() {
         let ul = this.remoteUrl
-        if(!ul || ul.length == 0) {
+        if(!ul || ul.length === 0) {
             ul = this.url
         }
         return { "width": this.width || 0, "height": this.height || 0, "url": ul || "" }
