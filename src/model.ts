@@ -623,9 +623,9 @@ export class MessageImage extends MediaMessageContent {
         this.height = height || 0;
     }
 
-    set url (url: string) {
-        this._url = url
-        this.remoteUrl = url
+    set url (ul: string) {
+        this._url = ul
+        this.remoteUrl = ul
     }
     get url () {
         return this._url

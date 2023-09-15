@@ -118,13 +118,17 @@ export class ChatManager {
 
         const message = Message.fromSendPacket(packet, content)
         if (content instanceof MediaMessageContent) {
-            if(content.remoteUrl && content.remoteUrl.length > 0) { // 有下载地址，不需要上传
-                console.log("有下载地址，不需要上传",content.remoteUrl)
+            if(!content.file) { // 没有文件，直接上传
+                console.log("不需要上传",content.remoteUrl)
                 WKSDK.shared().connectManager.sendPacket(packet)
             }else {
+                console.log("开始上传")
                 const task = WKSDK.shared().config.provider.messageUploadTask(message)
                 if (task) {
+                    console.log("上传任务添加成功")
                     WKSDK.shared().taskManager.addTask(task)
+                }else {
+                    console.log("没有实现上传数据源")
                 }
             }
            
