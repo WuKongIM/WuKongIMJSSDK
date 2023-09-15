@@ -118,10 +118,16 @@ export class ChatManager {
 
         const message = Message.fromSendPacket(packet, content)
         if (content instanceof MediaMessageContent) {
-            const task = WKSDK.shared().config.provider.messageUploadTask(message)
-            if (task) {
-                WKSDK.shared().taskManager.addTask(task)
+            if(content.remoteUrl && content.remoteUrl.length > 0) { // 有下载地址，不需要上传
+                console.log("有下载地址，不需要上传",content.remoteUrl)
+                WKSDK.shared().connectManager.sendPacket(packet)
+            }else {
+                const task = WKSDK.shared().config.provider.messageUploadTask(message)
+                if (task) {
+                    WKSDK.shared().taskManager.addTask(task)
+                }
             }
+           
         } else {
             WKSDK.shared().connectManager.sendPacket(packet)
         }

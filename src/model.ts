@@ -615,12 +615,20 @@ export class MessageText extends MessageContent {
 export class MessageImage extends MediaMessageContent {
     width!: number; // 图片宽度
     height!: number; // 图片高度
-    url!: string; // 图片远程地址
+    private _url!: string; // 图片远程地址
     constructor(file?: File, width?: number, height?: number) {
         super();
         this.file = file;
         this.width = width || 0;
         this.height = height || 0;
+    }
+
+    set url (url: string) {
+        this._url = url
+        this.remoteUrl = url
+    }
+    get url () {
+        return this._url
     }
     decodeJSON(content: any) {
         this.width = content["width"] || 0
