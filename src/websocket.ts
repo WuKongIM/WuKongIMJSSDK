@@ -6,12 +6,16 @@
 declare const uni: any; // 定义uni 为全局对象
 declare const wx: any; // 定义wx为全局对象
 
+let wkconnectSocket:any
+
 function getPlatformObj() {
-    if (typeof uni !== 'undefined' && typeof uni.connectSocket === 'function') {
+    if (typeof uni !== 'undefined') {
         console.log('UniApp运行环境');
+        wkconnectSocket = uni.connectSocket
         return uni
-    } else if (typeof wx !== 'undefined' && typeof wx.connectSocket === 'function') {
+    } else if (typeof wx !== 'undefined') {
         console.log('小程序运行环境');
+        wkconnectSocket = wx.connectSocket
         return wx
     } else {
         console.log('web运行环境');
@@ -32,8 +36,8 @@ export class WKWebsocket {
         }else {
             this.platform = getPlatformObj()
         }
-        if(this.platform) {
-           this.ws = this.platform.connectSocket({
+        if(wkconnectSocket) {
+           this.ws = wkconnectSocket({
                 url: addr,
                
                 complete: ()=> {
