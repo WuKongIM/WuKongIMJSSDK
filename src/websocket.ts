@@ -7,10 +7,10 @@ declare const uni: any; // 定义uni 为全局对象
 declare const wx: any; // 定义wx为全局对象
 
 function getPlatformObj() {
-    if (typeof uni !== 'undefined' && uni.connectSocket) {
+    if (typeof uni !== 'undefined' && typeof uni.connectSocket === 'function') {
         console.log('UniApp运行环境');
         return uni
-    } else if (typeof wx !== 'undefined' && wx.connectSocket) {
+    } else if (typeof wx !== 'undefined' && typeof wx.connectSocket === 'function') {
         console.log('小程序运行环境');
         return wx
     } else {
