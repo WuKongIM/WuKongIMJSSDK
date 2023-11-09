@@ -39,15 +39,22 @@ export class WKWebsocket {
         if(wkconnectSocket) {
            this.ws = wkconnectSocket({
                 url: addr,
-               
+                success: ()=> {
+                    console.log('打开websocket成功')
+                },
+                fail: ()=> {
+                    console.log('打开websocket失败')
+                },
                 complete: ()=> {
                     // eslint-disable-next-line no-empty-function
                 } // TODO: 这里一定要写，不然会返回一个 Promise对象
             })
         }else{
+            console.log('使用原生websocket')
             this.ws = new WebSocket(this.addr);
             this.ws.binaryType = 'arraybuffer';
         }
+        console.log('websocket', this.ws)
        
     }
 

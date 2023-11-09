@@ -3,17 +3,19 @@
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import APIClient from '../services/APIClient'
 import { useRouter } from "vue-router";
-import { WKSDK, Message, StreamItem, MessageText, Channel, ChannelTypePerson, ChannelTypeGroup, MessageStatus, SyncOptions, PullMode, MessageContent, MessageContentType } from "wukongimjssdk";
-import { ConnectStatus, ConnectStatusListener } from 'wukongimjssdk';
-import { SendackPacket, Setting } from 'wukongimjssdk';
+import { WKSDK, Message, StreamItem, MessageText, Channel, ChannelTypePerson, ChannelTypeGroup, MessageStatus, SyncOptions, PullMode, MessageContent, MessageContentType } from "../../../src/sdk";
+import { ConnectStatus, ConnectStatusListener } from '../../../src/sdk';
+import { SendackPacket, Setting } from '../../../src/sdk';
 import { Buffer } from 'buffer';
-import { MessageListener, MessageStatusListener } from 'wukongimjssdk';
+import { MessageListener, MessageStatusListener } from '../../../src/sdk';
 const router = useRouter();
 const chatRef = ref<HTMLElement | null>(null)
 const showSettingPanel = ref(false)
 const title = ref("")
 const text = ref("")
 const applyName = ref<string>() // 请求聊天的人名字
+
+let msgCount = 0;
 
 const channelID = ref("") // 设置聊天的频道ID
 const p2p = ref(true) // 是否是单聊
@@ -236,7 +238,8 @@ const settingOKClick = () => {
 
 const onSend = () => {
     if (!text.value || text.value.trim() === "") {
-        return
+        msgCount++
+        text.value = `${msgCount}`
     }
     const setting = Setting.fromUint8(0)
     if (to.value && to.value.channelID != "") {

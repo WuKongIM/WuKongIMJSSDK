@@ -1,6 +1,6 @@
 {
   "name": "wukongimjssdk",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "",
   "main": "lib/wukongimjssdk.cjs.js",
   "module": "lib/wukongimjssdk.esm.js",

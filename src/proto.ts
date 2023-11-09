@@ -244,7 +244,7 @@ export class SubackPacket extends Packet {
 }
 
 export interface IProto {
-  encode(f: Packet): any
+  encode(f: Packet): Uint8Array
   decode(data: Uint8Array): Packet
 }
 

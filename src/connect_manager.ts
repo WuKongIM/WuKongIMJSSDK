@@ -36,6 +36,9 @@ export class ConnectManager {
     dhPrivateKey!: Uint8Array // dh 私钥
 
     tempBufferData: number[] = new Array() // 接受数据临时缓存
+    
+    sendPacketQueue: Array<Packet> = new Array() // 发送队列
+    sendTimer: any // 发送定时器
 
     private constructor() {
 
@@ -363,7 +366,27 @@ export class ConnectManager {
         //     console.log("发送消息失败，连接已断开！")
         //     this.reConnect()
         // }
-        this.ws?.send(this.getProto().encode(p))
+        this.sendPacketQueue.push(p)
+        if(!this.sendTimer) {
+            this.sendTimer = setInterval(() => {
+                const sendData = new Array<number>()
+                let sendCount  = 0
+                while (this.sendPacketQueue.length > 0) {
+                    const packet = this.sendPacketQueue.shift()
+                    if(packet) {
+                        const packetData = Array.from(this.getProto().encode(packet))
+                        sendData.push(...packetData)
+                    }
+                    sendCount++
+                    if(sendCount >= WKSDK.shared().config.sendCountOfEach) {
+                        break
+                    }
+                }
+                if(sendData.length > 0) {
+                    this.ws?.send(new Uint8Array(sendData))
+                } 
+            }, WKSDK.shared().config.sendFrequency)
+        }
 
     }
 

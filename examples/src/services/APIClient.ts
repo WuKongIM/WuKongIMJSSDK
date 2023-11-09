@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from "axios";
-import { Channel, Message, SyncOptions, WKSDK } from "wukongimjssdk";
+import { Channel, Message, SyncOptions, WKSDK } from "../../../src/sdk";
 import { Convert } from "./convert";
 
 
