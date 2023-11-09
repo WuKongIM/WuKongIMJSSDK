@@ -37,7 +37,7 @@ export class ConnectManager {
 
     tempBufferData: number[] = new Array() // 接受数据临时缓存
     
-    sendPacketQueue: Array<Packet> = new Array() // 发送队列
+    sendPacketQueue: Packet[] = [] // 发送队列
     sendTimer: any // 发送定时器
 
     private constructor() {
