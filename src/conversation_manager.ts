@@ -124,6 +124,7 @@ export class ConversationManager {
             const newConversation = new Conversation()
             newConversation.channel = channel
             newConversation.timestamp = new Date().getTime() / 1000
+            this.conversations = [newConversation, ...this.conversations]
             this.notifyConversationListeners(newConversation, ConversationAction.add)
             return newConversation
         }
