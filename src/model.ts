@@ -341,7 +341,6 @@ export class ChannelInfo {
 }
 export class Conversation {
     channel!: Channel; // 频道
-    private _channelInfo: ChannelInfo | undefined;
     unread!: number; // 未读消息
     _logicUnread: number = 0 // 逻辑未读
     timestamp: number = 0

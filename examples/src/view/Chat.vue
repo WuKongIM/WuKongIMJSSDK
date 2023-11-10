@@ -1,6 +1,6 @@
 
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, toRaw, toRefs, unref } from 'vue';
 import APIClient from '../services/APIClient'
 import { useRouter } from "vue-router";
 import { WKSDK, Message, StreamItem, MessageText, Channel, ChannelTypePerson, ChannelTypeGroup, MessageStatus, SyncOptions, PullMode, MessageContent, MessageContentType } from "../../../src/sdk";
@@ -8,14 +8,14 @@ import { ConnectStatus, ConnectStatusListener } from '../../../src/sdk';
 import { SendackPacket, Setting } from '../../../src/sdk';
 import { Buffer } from 'buffer';
 import { MessageListener, MessageStatusListener } from '../../../src/sdk';
+import Conversation from '../components/Conversation/index.vue'
 const router = useRouter();
 const chatRef = ref<HTMLElement | null>(null)
 const showSettingPanel = ref(false)
 const title = ref("")
 const text = ref("")
-const applyName = ref<string>() // 请求聊天的人名字
 
-let msgCount = 0;
+let msgCount = 0
 
 const channelID = ref("") // 设置聊天的频道ID
 const p2p = ref(true) // 是否是单聊
@@ -58,7 +58,6 @@ onMounted(() => {
 
     }).catch((err) => {
         console.log(err)
-        alert(err.msg)
     })
 })
 
@@ -73,12 +72,6 @@ const connectIM = (addr: string) => {
     config.addr = addr
     WKSDK.shared().config = config
 
-    // 同步消息的数据源
-    WKSDK.shared().config.provider.syncMessagesCallback = async (channel: Channel, opts: SyncOptions) => {
-        const resultMessages = await APIClient.shared.syncMessages(channel, opts)
-
-        return resultMessages
-    }
 
     // 监听连接状态
     connectStatusListener = (status) => {
@@ -92,6 +85,9 @@ const connectIM = (addr: string) => {
 
     // 监听消息
     messageListener = (msg) => {
+        if(!to.value.isEqual(msg.channel)){
+            return
+        }
         if (msg.streamOn) {
             let exist = false
             for (const message of messages.value) {
@@ -171,6 +167,7 @@ const scrollBottom = () => {
 // 拉取当前会话最新消息
 const pullLast = async () => {
     pulldowning.value = true
+    pulldownFinished.value = false
     const msgs = await WKSDK.shared().chatManager.syncMessages(to.value, {
         limit: 15, startMessageSeq: 0, endMessageSeq: 0,
         pullMode: PullMode.Up
@@ -227,12 +224,26 @@ const settingOKClick = () => {
         to.value = new Channel(channelID.value, ChannelTypeGroup)
     }
     if (!p2p.value) {
-        APIClient.shared.joinChannel(to.value.channelID, to.value.channelType, WKSDK.shared().config.uid || "")
+        APIClient.shared.joinChannel(to.value.channelID, to.value.channelType, WKSDK.shared().config.uid || "") // 加入频道
+    }
+    const conversation = WKSDK.shared().conversationManager.findConversation(to.value)
+    if(!conversation) {
+        // 如果最近会话不存在，则创建一个空的会话
+        WKSDK.shared().conversationManager.createEmptyConversation(to.value)
     }
     showSettingPanel.value = false
 
     messages.value = []
 
+    pullLast() // 拉取最新消息
+}
+
+const onSelectChannel = (channel: Channel) => {
+    to.value = channel
+    channelID.value = channel.channelID
+    p2p.value = channel.channelType == ChannelTypePerson
+    showSettingPanel.value = false
+    messages.value = []
     pullLast() // 拉取最新消息
 }
 
@@ -253,6 +264,7 @@ const onSend = () => {
     } else {
         showSettingPanel.value = true
     }
+    scrollBottom()
 
 }
 
@@ -299,7 +311,7 @@ const messageStreamStart = (streamNoStr: string) => {
 
 }
 const messageStreamEnd = async () => {
-   await APIClient.shared.messageStreamEnd({
+    await APIClient.shared.messageStreamEnd({
         "stream_no": streamNo.value || "",
         "channel_id": channelID.value,
         "channel_type": p2p.value ? ChannelTypePerson : ChannelTypeGroup,
@@ -311,6 +323,7 @@ const logout = () => {
     WKSDK.shared().connectManager.disconnect()
     router.push({ path: '/' })
 }
+
 
 const getMessageText = (m: any) => {
     if (m instanceof Message) {
@@ -341,8 +354,10 @@ const handleScroll = (e: any) => {
     const scrollOffsetTop = e.target.scrollHeight - (targetScrollTop + e.target.clientHeight);
     if (targetScrollTop <= 250) { // 下拉
         if (pulldowning.value || pulldownFinished.value) {
+            console.log("不允许下拉","pulldowning",pulldowning.value,"pulldownFinished",pulldownFinished.value)
             return
         }
+        console.log("下拉")
         pulldowning.value = true
         pullDown().then(() => {
             pulldowning.value = false
@@ -378,6 +393,7 @@ const onEnter = () => {
         <div class="header">
             <div class="left">
                 <button v-on:click="logout">退出</button>
+                <button>聊天列表</button>
             </div>
             <div class="center">
                 {{ title }}
@@ -387,31 +403,42 @@ const onEnter = () => {
                     ChannelTypeGroup ? '群' : '单聊'}${to.channelID}` }}</button>
             </div>
         </div>
-        <div class="content" v-on:scroll="handleScroll" ref="chatRef">
-            <template v-for="m in messages">
-                <div class="message right" v-if="m.send" :id="m.clientMsgNo">
-                    <div class="status" v-if="m.status != MessageStatus.Normal">发送中</div>
-                    <div class="bubble right">
-                        <div class="text">{{ getMessageText(m) }}</div>
-                    </div>
-                    <div class="avatar">{{ m.fromUID.substring(0, 1).toUpperCase() }}</div>
+        <div class="content" >
+            <div class="conversation-box">
+                <Conversation :onSelectChannel="onSelectChannel"></Conversation>
+            </div>
+            <div class="message-box">
+                <div class="message-list" v-on:scroll="handleScroll" ref="chatRef">
+                    <template v-for="m in messages">
+                        <div class="message right" v-if="m.send" :id="m.clientMsgNo">
+                            <div class="status" v-if="m.status != MessageStatus.Normal">发送中</div>
+                            <div class="bubble right">
+                                <div class="text">{{ getMessageText(m) }}</div>
+                            </div>
+                            <div class="avatar">
+                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`" style="width: 40px;height: 40px;"/>
+                            </div>
+                        </div>
+                        <div class="message" v-if="!m.send" :id="m.clientMsgNo">
+                            <div class="avatar">
+                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`" style="width: 40px;height: 40px;"/>
+                            </div>
+                            <div class="bubble">
+                                <div class="text">{{ getMessageText(m) }}</div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-                <div class="message" v-if="!m.send" :id="m.clientMsgNo">
-                    <div class="avatar">{{ m.fromUID.substring(0, 1).toUpperCase() }}</div>
-                    <div class="bubble">
-                        <div class="text">{{ getMessageText(m) }}</div>
-                    </div>
+                <div class="footer">
+                    <input :placeholder="msgInputPlaceholder" v-model="text" style="height: 40px;"
+                        @keydown.enter="onEnter" />
+                    <button class="message-stream" v-on:click="onMessageStream">{{ startStreamMessage ? '停止流消息' : '开启流消息'
+                    }}</button>
+                    <button v-on:click="onSend">发送</button>
                 </div>
-            </template>
-
-
+            </div>
         </div>
-        <div class="footer">
-            <input :placeholder="msgInputPlaceholder" v-model="text" style="height: 40px;" @keydown.enter="onEnter" />
-            <button class="message-stream" v-on:click="onMessageStream">{{ startStreamMessage ? '停止流消息' : '开启流消息'
-            }}</button>
-            <button v-on:click="onSend">发送</button>
-        </div>
+
 
     </div>
     <transition name="fade">
@@ -463,6 +490,10 @@ const onEnter = () => {
     }
 }
 
+.header .left {
+    display: flex;
+}
+
 .header .left button {
     margin-left: 10px;
     height: 40px;
@@ -492,13 +523,15 @@ const onEnter = () => {
 
 .content {
     background-color: #f5f5f5;
-    height: calc(100vh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    position: relative;
+    display: flex;
+    height: calc(100vh - 60px);
     /* header + footer */
     /* header height */
-    margin-top: calc(60px + env(safe-area-inset-top));
+    padding-top: calc(60px + env(safe-area-inset-top));
     /* padding-top: 60px; */
     /* padding-bottom: 60px; */
-    overflow-y: auto;
+    /* overflow-y: auto; */
     /* footer height */
 }
 
@@ -569,7 +602,6 @@ const onEnter = () => {
     height: 60px;
     background-color: white;
     display: flex;
-    position: fixed;
     bottom: env(safe-area-inset-bottom);
     width: 100%;
     align-items: center;
@@ -672,5 +704,27 @@ const onEnter = () => {
 .message-stream {
     width: 120px !important;
     height: 40px;
+}
+.message-box {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.message-list {
+    width: 100%;
+    height: calc(100% - 60px);
+    overflow: auto;
+}
+
+.conversation-box {
+    display: flex;
+    position: relative;
+    width: 300px;
+    height: 100%;
+    left: 0px;
+    z-index: 10000;
 }
 </style>
