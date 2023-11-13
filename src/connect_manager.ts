@@ -360,34 +360,11 @@ export class ConnectManager {
     }
 
     sendPacket(p: Packet) {
-        // if (this.connected()) {
-        //     this.ws?.send(this.getProto().encode(p))
-        // } else {
-        //     console.log("发送消息失败，连接已断开！")
-        //     this.reConnect()
-        // }
-        this.sendPacketQueue.push(p)
-        if(!this.sendTimer) {
-            this.sendTimer = setInterval(() => {
-                const sendData = new Array<number>()
-                let sendCount  = 0
-                while (this.sendPacketQueue.length > 0) {
-                    const packet = this.sendPacketQueue.shift()
-                    if(packet) {
-                        const packetData = Array.from(this.getProto().encode(packet))
-                        sendData.push(...packetData)
-                    }
-                    sendCount++
-                    if(sendCount >= WKSDK.shared().config.sendCountOfEach) {
-                        break
-                    }
-                }
-                if(sendData.length > 0) {
-                    this.ws?.send(new Uint8Array(sendData))
-                } 
-            }, WKSDK.shared().config.sendFrequency)
-        }
+        this.send(this.getProto().encode(p))
+    }
 
+    send(data: Uint8Array) {
+        this.ws?.send(data)
     }
 
     getProto(): IProto {

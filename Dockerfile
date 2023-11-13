@@ -1,8 +1,11 @@
 FROM node:18.0.0 as builder
 WORKDIR /app
 RUN curl -o- -L https://yarnpkg.com/install.sh | bash
+
 COPY . .
+
 WORKDIR /app/examples
+
 RUN yarn install
 RUN yarn build
 

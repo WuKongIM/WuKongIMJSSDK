@@ -1,4 +1,4 @@
-import { Channel, ChannelInfo, SyncOptions, WKSDK } from "../../../src/sdk"
+import { Channel, ChannelInfo, ChannelTypeGroup, ChannelTypePerson, SyncOptions, WKSDK } from "wukongimjssdk"
 import APIClient from "./APIClient"
 
 
@@ -20,6 +20,11 @@ export function initDataSource() {
     // 获取频道信息
     WKSDK.shared().config.provider.channelInfoCallback = async (channel: Channel) => {
         // 这里仅做演示，实际应该是请求自己业务端的接口，然后返回自己业务端的频道信息，然后填充ChannelInfo,这样在UI的各处就可以很容易的获取到频道的业务信息
+        if(channel.channelType === ChannelTypePerson) { // 这里调用你的业务接口获取个人信息
+        }else if (channel.channelType === ChannelTypeGroup) { // 这里调用你的业务接口获取群信息
+        }
+
+        // 以下仅演示数据
         let channelInfo: ChannelInfo = {
             title: channel.channelID.substring(0, 1).toUpperCase(),
             logo: `https://api.multiavatar.com/${channel.channelID}.png`,
@@ -32,8 +37,6 @@ export function initDataSource() {
         }
         return channelInfo
     }
-
-    
     // 如果是群频道，可以实现这个方法，调用 WKSDK.shared().channelManager.syncSubscribes(channel) 方法将会触发此回调
     //  WKSDK.shared().config.provider.syncSubscribersCallback
 

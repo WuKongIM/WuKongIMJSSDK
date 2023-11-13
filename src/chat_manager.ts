@@ -14,6 +14,8 @@ export class ChatManager {
     cmdListeners: ((message: Message) => void)[] = new Array(); // 命令类消息监听
     listeners: MessageListener[] = new Array(); // 收取消息监听
     sendingQueues: Map<number, SendPacket> = new Map(); // 发送中的消息
+    sendPacketQueue: Packet[] = [] // 发送队列
+    sendTimer: any // 发送定时器
     sendStatusListeners: MessageStatusListener[] = new Array(); // 消息状态监听
     clientSeq: number = 0
 
@@ -120,7 +122,7 @@ export class ChatManager {
         if (content instanceof MediaMessageContent) {
             if(!content.file) { // 没有文件，直接上传
                 console.log("不需要上传",content.remoteUrl)
-                WKSDK.shared().connectManager.sendPacket(packet)
+                this.sendSendPacket(packet)
             }else {
                 console.log("开始上传")
                 const task = WKSDK.shared().config.provider.messageUploadTask(message)
@@ -133,11 +135,35 @@ export class ChatManager {
             }
            
         } else {
-            WKSDK.shared().connectManager.sendPacket(packet)
+            this.sendSendPacket(packet)
         }
         this.notifyMessageListeners(message)
 
         return message
+    }
+
+    sendSendPacket(p: SendPacket) {
+        this.sendPacketQueue.push(p)
+        if(!this.sendTimer) {
+            this.sendTimer = setInterval(() => {
+                const sendData = new Array<number>()
+                let sendCount  = 0
+                while (this.sendPacketQueue.length > 0) {
+                    const packet = this.sendPacketQueue.shift()
+                    if(packet) {
+                        const packetData = Array.from(WKSDK.shared().config.proto.encode(packet))
+                        sendData.push(...packetData)
+                    }
+                    sendCount++
+                    if(sendCount >= WKSDK.shared().config.sendCountOfEach) {
+                        break
+                    }
+                }
+                if(sendData.length > 0) {
+                    WKSDK.shared().connectManager.send(new Uint8Array(sendData))
+                } 
+            }, WKSDK.shared().config.sendFrequency)
+        }
     }
     getSendPacket(content: MessageContent, channel: Channel, setting: Setting = new Setting()): SendPacket {
         const packet = new SendPacket();
