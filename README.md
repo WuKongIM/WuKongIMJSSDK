@@ -1,7 +1,7 @@
 
 ## 文档
 
-https://githubim.com/sdk/javascript
+https://githubim.com/sdk/jssdk/intro.html
 
 
 ## npm 或yarn安装
