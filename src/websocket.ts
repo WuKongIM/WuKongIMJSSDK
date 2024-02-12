@@ -150,6 +150,10 @@ export class WKWebsocket {
             if(data instanceof Uint8Array) {
                 this.ws.send({ data:data.buffer })
             }else {
+                if (this.ws.readyState !== WebSocket.OPEN) {
+                    console.log('ws尚未连接，无法发送消息: ', this.ws.readyState)
+                    return
+                }
                 this.ws.send({ data })
             }
             
