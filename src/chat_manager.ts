@@ -97,6 +97,7 @@ export class ChatManager {
         packet.reddot = recvPacket.reddot
         packet.messageID = recvPacket.messageID;
         packet.messageSeq = recvPacket.messageSeq;
+        console.log("发送recvack------>", packet.messageSeq, packet.messageID)
         WKSDK.shared().connectManager.sendPacket(packet)
     }
 

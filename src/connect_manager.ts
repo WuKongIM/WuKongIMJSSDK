@@ -238,11 +238,11 @@ export class ConnectManager {
                 if (lenAfter > 0) {
                     console.log("有粘包！-->", this.tempBufferData)
                 }
-
-                if (dataList.length > 0) {
-                    callback(dataList);
-                }
+               
             } while (lenBefore != lenAfter && lenAfter >= 1)
+            if (dataList.length > 0) {
+                callback(dataList);
+            }
         } catch (error) {
             console.log("解码数据异常---->", error)
             this.reConnect()
@@ -279,6 +279,7 @@ export class ConnectManager {
         } while (hasLength)
 
         if (!remLengthFull) {
+            console.log("包的剩余长度的长度不够完整！")
             return data;
         }
 
@@ -295,8 +296,9 @@ export class ConnectManager {
             } else {
                 // 粘包  大于1个包
                 const packetLength = fixedHeaderLength + remLengthLength + remLength;
+                console.log("粘包  大于1个包","，packetLength:",packetLength,"length:",length)
                 dataCallback(data.slice(0, packetLength))
-                return data.slice(packetLength, length - packetLength)
+                return data.slice(packetLength)
             }
         }
     }
