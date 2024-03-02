@@ -15,7 +15,7 @@ export class WKConfig {
     heartbeatInterval: number = 60000; // 心跳频率 单位毫秒
     provider!: Provider
     receiptFlushInterval:number = 2000 // 回执flush间隔 单位为毫秒ms
-    sdkVersion = "1.0.0" // SDK版本号
+    sdkVersion = "1.2.7" // SDK版本号
     platform?:any // 运行平台的全局对象，比如unapp的是 uni ， 微信的是 wx
     sendFrequency = 100 // 发送频率 单位为毫秒ms
     sendCountOfEach = 5  // 每次同时发送消息数量
