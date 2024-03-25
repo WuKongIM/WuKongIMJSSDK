@@ -18,11 +18,13 @@ export enum ConnectStatus {
 }
 
 export type ConnectStatusListener = (status: ConnectStatus, reasonCode?: number) => void;
+export type ConnectDelayListener = (delay: number) => void;
 
 export class ConnectManager {
     ws?: WKWebsocket;
     status: ConnectStatus = ConnectStatus.Disconnect;  // 连接状态
     connectStatusListeners: ConnectStatusListener[] = new Array(); // 连接状态监听
+    connectDelayListeners: ConnectDelayListener[] = new Array(); // 连接延时监听
 
     // reConnect 重连标记
     lockReconnect = false;
@@ -74,17 +76,22 @@ export class ConnectManager {
             clearTimeout(this.pongRespTimer);
         }
         this.heartTimer = setInterval(() => {
+            let pingST = Date.now();// 记录发送ping的开始时间
             self.sendPing(); // 发送心跳包
+            let pingET = Date.now();// 记录发送ping的结束时间
+            let pingDelay = pingET - pingST;
             if (self.pingRetryCount > self.pingMaxRetryCount) {
                 console.log('ping没有响应，断开连接。');
+                pingDelay = 9999; // ping没有响应,延迟调整为9999
                 self.onlyDisconnect();
                 if (this.status === ConnectStatus.Disconnect) {
                     self.connect()
                 }
             } else if (self.pingRetryCount > 1) {
+                pingDelay = 9999; // ping没有响应,延迟调整为9999
                 console.log(`第${self.pingRetryCount}次，尝试ping。`);
             }
-
+            this.notifyConnectDelayListeners(pingDelay);
         }, WKSDK.shared().config.heartbeatInterval);
     }
 
@@ -386,6 +393,20 @@ export class ConnectManager {
             }
         }
     }
+    
+    // 添加连接延时监听
+    addConnectDelayListener(listener: ConnectDelayListener) {
+        this.connectDelayListeners.push(listener);
+    }
+    removeConnectDelayListener(listener: ConnectDelayListener) {
+        const len = this.connectDelayListeners.length;
+        for (let i = 0; i < len; i++) {
+            if (listener === this.connectDelayListeners[i]) {
+                this.connectDelayListeners.splice(i, 1)
+                return
+            }
+        }
+    }
 
 
     notifyConnectStatusListeners(reasonCode: number) {
@@ -397,6 +418,17 @@ export class ConnectManager {
             });
         }
     }
+
+    notifyConnectDelayListeners(delay: number) {
+        if(this.connectDelayListeners) {
+            this.connectDelayListeners.forEach((listener: ConnectDelayListener) => {
+                if(listener) {
+                    listener(delay)
+                }
+            })
+        }
+    }
+
     sendRecvackPacket(recvPacket: RecvPacket) {
         const packet = new RecvackPacket();
         packet.messageID = recvPacket.messageID;
