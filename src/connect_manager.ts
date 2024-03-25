@@ -42,6 +42,7 @@ export class ConnectManager {
     sendPacketQueue: Packet[] = [] // 发送队列
     sendTimer: any // 发送定时器
 
+    pingTime: number = 0 // ping时间戳
     private constructor() {
 
     }
@@ -76,22 +77,16 @@ export class ConnectManager {
             clearTimeout(this.pongRespTimer);
         }
         this.heartTimer = setInterval(() => {
-            let pingST = Date.now();// 记录发送ping的开始时间
             self.sendPing(); // 发送心跳包
-            let pingET = Date.now();// 记录发送ping的结束时间
-            let pingDelay = pingET - pingST;
             if (self.pingRetryCount > self.pingMaxRetryCount) {
                 console.log('ping没有响应，断开连接。');
-                pingDelay = 9999; // ping没有响应,延迟调整为9999
                 self.onlyDisconnect();
                 if (this.status === ConnectStatus.Disconnect) {
                     self.connect()
                 }
             } else if (self.pingRetryCount > 1) {
-                pingDelay = 9999; // ping没有响应,延迟调整为9999
                 console.log(`第${self.pingRetryCount}次，尝试ping。`);
             }
-            this.notifyConnectDelayListeners(pingDelay);
         }, WKSDK.shared().config.heartbeatInterval);
     }
 
@@ -261,6 +256,7 @@ export class ConnectManager {
         const packetType = header >> 4
         if (packetType == PacketType.PONG) {
             dataCallback([header])
+            this.notifyConnectDelayListeners(Date.now()-this.pingTime)
             return data.slice(1)
         }
 
@@ -365,6 +361,7 @@ export class ConnectManager {
 
     sendPing() {
         this.pingRetryCount++;
+        this.pingTime = Date.now();
         this.sendPacket(new PingPacket())
     }
 
