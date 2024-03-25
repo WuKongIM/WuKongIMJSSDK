@@ -79,6 +79,7 @@ export class ConnectManager {
         this.heartTimer = setInterval(() => {
             self.sendPing(); // 发送心跳包
             if (self.pingRetryCount > self.pingMaxRetryCount) {
+                this.notifyConnectDelayListeners(9999); // 连接超时
                 console.log('ping没有响应，断开连接。');
                 self.onlyDisconnect();
                 if (this.status === ConnectStatus.Disconnect) {
@@ -256,7 +257,6 @@ export class ConnectManager {
         const packetType = header >> 4
         if (packetType == PacketType.PONG) {
             dataCallback([header])
-            this.notifyConnectDelayListeners(Date.now()-this.pingTime)
             return data.slice(1)
         }
 
@@ -341,6 +341,7 @@ export class ConnectManager {
             this.notifyConnectStatusListeners(connackPacket.reasonCode);
         } else if (p.packetType === PacketType.PONG) {
             this.pingRetryCount = 0;
+            this.notifyConnectDelayListeners(Date.now()-this.pingTime)
         } else if (p.packetType === PacketType.DISCONNECT) { // 服务器要求客户端断开（一般是账号在其他地方登录，被踢）
 
             const disconnectPacket = (p as DisconnectPacket)
