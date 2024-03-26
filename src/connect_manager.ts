@@ -18,11 +18,13 @@ export enum ConnectStatus {
 }
 
 export type ConnectStatusListener = (status: ConnectStatus, reasonCode?: number) => void;
+export type ConnectDelayListener = (delay: number) => void;
 
 export class ConnectManager {
     ws?: WKWebsocket;
     status: ConnectStatus = ConnectStatus.Disconnect;  // 连接状态
     connectStatusListeners: ConnectStatusListener[] = new Array(); // 连接状态监听
+    connectDelayListeners: ConnectDelayListener[] = new Array(); // 连接延时监听
 
     // reConnect 重连标记
     lockReconnect = false;
@@ -40,6 +42,7 @@ export class ConnectManager {
     sendPacketQueue: Packet[] = [] // 发送队列
     sendTimer: any // 发送定时器
 
+    pingTime: number = 0 // ping时间戳
     private constructor() {
 
     }
@@ -76,6 +79,7 @@ export class ConnectManager {
         this.heartTimer = setInterval(() => {
             self.sendPing(); // 发送心跳包
             if (self.pingRetryCount > self.pingMaxRetryCount) {
+                this.notifyConnectDelayListeners(9999); // 连接超时
                 console.log('ping没有响应，断开连接。');
                 self.onlyDisconnect();
                 if (this.status === ConnectStatus.Disconnect) {
@@ -84,7 +88,6 @@ export class ConnectManager {
             } else if (self.pingRetryCount > 1) {
                 console.log(`第${self.pingRetryCount}次，尝试ping。`);
             }
-
         }, WKSDK.shared().config.heartbeatInterval);
     }
 
@@ -338,6 +341,7 @@ export class ConnectManager {
             this.notifyConnectStatusListeners(connackPacket.reasonCode);
         } else if (p.packetType === PacketType.PONG) {
             this.pingRetryCount = 0;
+            this.notifyConnectDelayListeners(Date.now()-this.pingTime)
         } else if (p.packetType === PacketType.DISCONNECT) { // 服务器要求客户端断开（一般是账号在其他地方登录，被踢）
 
             const disconnectPacket = (p as DisconnectPacket)
@@ -358,6 +362,7 @@ export class ConnectManager {
 
     sendPing() {
         this.pingRetryCount++;
+        this.pingTime = Date.now();
         this.sendPacket(new PingPacket())
     }
 
@@ -386,6 +391,20 @@ export class ConnectManager {
             }
         }
     }
+    
+    // 添加连接延时监听
+    addConnectDelayListener(listener: ConnectDelayListener) {
+        this.connectDelayListeners.push(listener);
+    }
+    removeConnectDelayListener(listener: ConnectDelayListener) {
+        const len = this.connectDelayListeners.length;
+        for (let i = 0; i < len; i++) {
+            if (listener === this.connectDelayListeners[i]) {
+                this.connectDelayListeners.splice(i, 1)
+                return
+            }
+        }
+    }
 
 
     notifyConnectStatusListeners(reasonCode: number) {
@@ -397,6 +416,17 @@ export class ConnectManager {
             });
         }
     }
+
+    notifyConnectDelayListeners(delay: number) {
+        if(this.connectDelayListeners) {
+            this.connectDelayListeners.forEach((listener: ConnectDelayListener) => {
+                if(listener) {
+                    listener(delay)
+                }
+            })
+        }
+    }
+
     sendRecvackPacket(recvPacket: RecvPacket) {
         const packet = new RecvackPacket();
         packet.messageID = recvPacket.messageID;
