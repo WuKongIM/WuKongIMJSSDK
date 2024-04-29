@@ -416,7 +416,7 @@ export class ConnectManager {
             this.connectStatusListeners.forEach((listener: ConnectStatusListener) => {
                 if (listener) {
                     let connectionInfo = new ConnectionInfo()
-                    if(connectackPacket) {
+                    if(connectackPacket && connectackPacket.nodeId) {
                         connectionInfo.nodeId = connectackPacket.nodeId.toNumber()
                     }
                     listener(this.status, reasonCode,connectionInfo);
