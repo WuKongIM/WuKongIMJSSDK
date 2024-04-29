@@ -1,4 +1,4 @@
-import { Conversation, Message } from "wukongimjssdk"
+import { Conversation, Message } from "../../../../src/sdk"
 
 export class ConversationWrap {
     conversation: Conversation

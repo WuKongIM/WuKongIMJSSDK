@@ -82,7 +82,7 @@ export class WKWebsocket {
 
     onmessage(callback: ((ev: MessageEvent) => any) | null) {
         if (this.platform) {
-            this.ws.onMessage((e) => {
+            this.ws.onMessage((e:any) => {
                 if (this.destory) {
                     return
                 }
@@ -91,7 +91,7 @@ export class WKWebsocket {
                 }
             })
         } else {
-            this.ws.onmessage = (e) => {
+            this.ws.onmessage = (e:any) => {
                 if (this.destory) {
                     return
                 }
@@ -105,7 +105,7 @@ export class WKWebsocket {
 
     onclose(callback: (e: CloseEvent) => void) {
         if (this.platform) {
-            this.ws.onClose((params) => {
+            this.ws.onClose((params:any) => {
                 if (this.destory) {
                     return
                 }
@@ -114,7 +114,7 @@ export class WKWebsocket {
                 }
             })
         } else {
-            this.ws.onclose = (e) => {
+            this.ws.onclose = (e:any) => {
                 if (this.destory) {
                     return
                 }
@@ -128,13 +128,13 @@ export class WKWebsocket {
 
     onerror(callback: (e: Event) => void) {
         if (this.platform) {
-            this.ws.onError((e) => {
+            this.ws.onError((e:any) => {
                 if (callback) {
                     callback(e)
                 }
             })
         } else {
-            this.ws.onerror = (e) => {
+            this.ws.onerror = (e:any) => {
                 if (this.destory) {
                     return
                 }

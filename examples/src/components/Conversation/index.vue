@@ -2,7 +2,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
-import { CMDContent, Channel, ChannelInfo, ChannelTypePerson, ConnectStatus, ConnectStatusListener, Conversation, ConversationAction, Message, WKSDK } from 'wukongimjssdk';
+import { CMDContent, Channel, ChannelInfo, ChannelTypePerson, ConnectStatus, ConnectStatusListener, Conversation, ConversationAction, Message, WKSDK } from '../../../../src/sdk';
 import { ConversationWrap } from './ConversationWrap';
 import APIClient, { CMDType } from '../../services/APIClient';
 

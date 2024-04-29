@@ -3,6 +3,8 @@ import Decoder from './decoder';
 import BigNumber from 'bignumber.js';
 import { SecurityManager } from './security';
 import { Md5 } from 'md5-typescript';
+
+let serverVersion = 0 // 服务端返回的协议版本
 /* tslint:disable */
 export enum PacketType {
   Reserved = 0, // 保留位
@@ -77,6 +79,7 @@ export class Packet {
   reddot!: boolean; // 是否显示红点
   syncOnce!: boolean; // 是否只同步一次
   dup!: boolean; // 是否是重发
+  hasServerVersion!: boolean; // connack包是否返回了服务器版本号
   public set packetType(packetType: PacketType) {
     this._packetType = packetType;
   }
@@ -104,10 +107,12 @@ export class ConnectPacket extends Packet {
 // 连接回执包
 export class ConnackPacket extends Packet {
   /* tslint:disable-line */
+  serverVersion!: number; // 服务端版本
   serverKey!: string;     // 通过客户端的RSA公钥加密的服务端DH公钥
   salt!: string;    // salt
   timeDiff!: BigNumber; // 客户端时间与服务器的差值，单位毫秒。
   reasonCode: number = 0; // 原因码
+  nodeId!: BigNumber; // 节点ID
   public get packetType() {
     return PacketType.CONNACK;
   }
@@ -132,6 +137,7 @@ export class SendPacket extends Packet {
   streamNo!: string; // 流式编号
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
+  expire?: number // 消息过期时间
   fromUID!: string; // 发送UID
   topic?: string
   payload!: Uint8Array; // 负荷数据
@@ -168,6 +174,7 @@ export class RecvPacket extends Packet {
   timestamp!: number; // 消息时间戳
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
+  expire?: number // 消息过期时间
   topic?: string // topic
   fromUID!: string; // 发送者UID
   payload!: Uint8Array; // 负荷数据
@@ -332,6 +339,9 @@ export default class Proto implements IProto {
     // channel
     enc.writeString(packet.channelID);
     enc.writeByte(packet.channelType);
+    if(serverVersion>=3) {
+      enc.writeInt32(packet.expire || 0)
+    }
     // msg key
     const payload = Uint8Array.from(enc.stringToUint(SecurityManager.shared().encryption2(packet.payload)))
     const msgKey = SecurityManager.shared().encryption(packet.veritifyString(payload))
@@ -345,7 +355,6 @@ export default class Proto implements IProto {
 
     // payload
     if (payload) {
-
       enc.writeBytes(Array.from(payload))
     }
     return enc.w;
@@ -382,10 +391,21 @@ export default class Proto implements IProto {
   decodeConnect(f: Packet, decode: Decoder) {
     const p = new ConnackPacket();
     p.from(f);
+
+    if (f.hasServerVersion) {
+      p.serverVersion = decode.readByte()
+      serverVersion = p.serverVersion
+      console.log("服务器协议版本:",serverVersion)
+    }
+
     p.timeDiff = decode.readInt64();
     p.reasonCode = decode.readByte();
     p.serverKey = decode.readString()
     p.salt = decode.readString()
+    if (p.serverVersion >= 4) {
+      p.nodeId = decode.readInt64()
+    }
+
     return p;
   }
   decodeDisconnect(f: Packet, decode: Decoder) {
@@ -403,6 +423,9 @@ export default class Proto implements IProto {
     p.fromUID = decode.readString();
     p.channelID = decode.readString();
     p.channelType = decode.readByte();
+    if(serverVersion>=3) {
+      p.expire = decode.readInt32()
+    }
     p.clientMsgNo = decode.readString();
     if (p.setting.streamOn) {
       p.streamNo = decode.readString();
@@ -455,6 +478,9 @@ export default class Proto implements IProto {
     f.packetType = b >> 4;
     if (f.packetType != PacketType.PING && f.packetType != PacketType.PONG) {
       f.remainingLength = decode.readVariableLength();
+    }
+    if (f.packetType === PacketType.CONNACK) {
+      f.hasServerVersion = (b & 0x01) > 0;
     }
     return f;
   }

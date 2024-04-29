@@ -308,7 +308,7 @@ export class ConnectManager {
         if (p.packetType === PacketType.CONNACK) {
             const connackPacket = p as ConnackPacket;
             if (connackPacket.reasonCode === 1) {
-                console.log('连接成功！');
+                console.log(`成功连接到节点[${connackPacket.nodeId}]`);
 
                 WKSDK.shared().channelManager.reSubscribe() // 重置订阅状态
                 this.status = ConnectStatus.Connected;

@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import APIClient from '../services/APIClient'
 import { useRouter } from "vue-router";
-import {WKSDK} from 'wukongimjssdk';
+import {WKSDK} from '../../../src/sdk';
 const router = useRouter();
 // defineProps<{ msg: string }>()
 
