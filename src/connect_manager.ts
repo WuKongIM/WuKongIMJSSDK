@@ -17,7 +17,11 @@ export enum ConnectStatus {
     ConnectKick, // 连接被踢，服务器要求客户端断开（一般是账号在其他地方登录，被踢）
 }
 
-export type ConnectStatusListener = (status: ConnectStatus, reasonCode?: number) => void;
+export  class ConnectionInfo {
+    nodeId:number = 0
+}
+
+export type ConnectStatusListener = (status: ConnectStatus, reasonCode?: number,connectionInfo?:ConnectionInfo) => void;
 export type ConnectDelayListener = (delay: number) => void;
 
 export class ConnectManager {
@@ -338,7 +342,7 @@ export class ConnectManager {
                 this.status = ConnectStatus.ConnectFail;
                 this.needReconnect = false; // IM端返回连接失败就不再进行重连。
             }
-            this.notifyConnectStatusListeners(connackPacket.reasonCode);
+            this.notifyConnectStatusListeners(connackPacket.reasonCode,connackPacket);
         } else if (p.packetType === PacketType.PONG) {
             this.pingRetryCount = 0;
             this.notifyConnectDelayListeners(Date.now()-this.pingTime)
@@ -407,11 +411,15 @@ export class ConnectManager {
     }
 
 
-    notifyConnectStatusListeners(reasonCode: number) {
+    notifyConnectStatusListeners(reasonCode: number,connectackPacket?:ConnackPacket) {
         if (this.connectStatusListeners) {
             this.connectStatusListeners.forEach((listener: ConnectStatusListener) => {
                 if (listener) {
-                    listener(this.status, reasonCode);
+                    let connectionInfo = new ConnectionInfo()
+                    if(connectackPacket) {
+                        connectionInfo.nodeId = connectackPacket.nodeId.toNumber()
+                    }
+                    listener(this.status, reasonCode,connectionInfo);
                 }
             });
         }
