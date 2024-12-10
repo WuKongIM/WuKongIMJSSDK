@@ -6,19 +6,19 @@ export type MessageReceiptListener = ((channel:Channel,message: Message[]) => vo
 export class ReceiptManager {
     private static instance: ReceiptManager
     listeners: MessageReceiptListener[] = new Array(); // 回执监听
-    private timer!:NodeJS.Timeout
-    public static shared() {
+    private timer!:NodeJS.Timeout | null | number
+    public static shared(flushInterval:number = 2000) {
         if (!this.instance) {
             this.instance = new ReceiptManager();
-            this.instance.setup()
+            this.instance.setup(flushInterval)
         }
         return this.instance;
     }
 
     private  channelMessagesMap = new Map<string,Message[]>();
 
-   private setup() {
-        this.timer = setInterval(this.flushLoop.bind(this),WKSDK.shared().config.receiptFlushInterval)
+   private setup(flushInterval:number) {
+        this.timer = setInterval(this.flushLoop.bind(this),flushInterval)
     }
 
     // 添加需要回执的消息
