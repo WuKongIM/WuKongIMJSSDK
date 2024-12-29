@@ -19,5 +19,6 @@ export class WKConfig {
     platform?:any // 运行平台的全局对象，比如unapp的是 uni ， 微信的是 wx
     sendFrequency = 100 // 发送频率 单位为毫秒ms
     sendCountOfEach = 5  // 每次同时发送消息数量
+    clientMsgDeviceId = 0 // 客户端消息设备id, 如果设置了每条消息的clientMsgNo里将带这个标记
 
 }

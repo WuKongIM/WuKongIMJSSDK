@@ -185,7 +185,7 @@ export class ChatManager {
         packet.noPersist = opts.noPersist;
         packet.setting = setting
         packet.reddot = true;
-        packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}3`
+        packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}_${WKSDK.shared().config.clientMsgDeviceId}_3`
         packet.streamNo = setting.streamNo
         packet.clientSeq = this.getClientSeq()
         packet.fromUID = WKSDK.shared().config.uid || '';

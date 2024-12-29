@@ -484,7 +484,11 @@ export class Reply {
             rep["root_message_id"] = this.rootMessageID
         }
         if (this.content) {
-            rep["payload"] = JSON.parse(uint8ArrayToString(this.content.encode()))
+            try {
+                rep["payload"] = JSON.parse(uint8ArrayToString(this.content.encode()))
+            } catch (e) {
+                console.error(e)
+            }
         }
         return rep
     }
