@@ -45,7 +45,7 @@ export default class WKSDK {
         this.conversationManager = ConversationManager.shared()
         this.securityManager = SecurityManager.shared()
         this.reminderManager = ReminderManager.shared()
-        this.receiptManager = ReceiptManager.shared()
+        this.receiptManager = ReceiptManager.shared(this.config.receiptFlushInterval)
 
 
         this.registerFactor((contentType: number): MessageContent | undefined => {
