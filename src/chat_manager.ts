@@ -1,11 +1,12 @@
 import { MessageContentType } from "./const";
 import { Guid } from "./guid";
-import WKSDK from "./index";
+import WKSDK, { Stream } from "./index";
 import { Channel, ChannelTypePerson, MediaMessageContent, Message, MessageContent, SyncOptions, MessageSignalContent } from "./model";
-import { Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting } from "./proto";
+import { Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting, StreamFlag } from "./proto";
 import { Task, MessageTask, TaskStatus } from "./task";
 import { Md5 } from "md5-typescript";
 import { SecurityManager } from "./security";
+import { StreamManager } from "./stream_manager";
 
 export type MessageListener = ((message: Message) => void);
 export type MessageStatusListener = ((p: SendackPacket) => void);
@@ -65,7 +66,14 @@ export class ChatManager {
                 this.notifyCMDListeners(message);
                 return;
             }
-            this.notifyMessageListeners(message);
+            if (message.setting.streamOn && message.streamFlag !== undefined && message.streamFlag !== StreamFlag.START) {
+                // 通知流监听者
+                StreamManager.shared().notifyStreamListeners(Stream.fromMessage(message))
+            }else {
+                // 通知消息监听者
+                this.notifyMessageListeners(message);
+            }
+            
             WKSDK.shared().channelManager.notifySubscribeIfNeed(message); // 通知指定的订阅者
         } else if (packet instanceof SendackPacket) {
             const sendack = packet as SendackPacket;

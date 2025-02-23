@@ -50,7 +50,7 @@ export class Reaction {
 
 function decodePayload(payload: Uint8Array): MessageContent {
     let contentType = 0
-    if (payload) {
+    if (payload && payload.length > 0) {
         const encodedString = String.fromCharCode.apply(null, Array.from(payload));
         const decodedString = decodeURIComponent(escape(encodedString));
         const contentObj = JSON.parse(decodedString)
@@ -59,8 +59,10 @@ function decodePayload(payload: Uint8Array): MessageContent {
         }
     }
     const messageContent = MessageContentManager.shared().getMessageContent(contentType)
-    messageContent.decode(payload)
-
+    if(payload && payload.length > 0) {
+        messageContent.decode(payload)
+    }
+    
     return messageContent
 }
 
@@ -91,9 +93,9 @@ export class Message {
             this.messageID = recvPacket.messageID
             this.messageSeq = recvPacket.messageSeq
             this.clientMsgNo = recvPacket.clientMsgNo
-            this.streamNo = recvPacket.streamNo
             this.streamFlag = recvPacket.streamFlag
-            this.streamSeq = recvPacket.streamSeq
+            this.streamNo = recvPacket.streamNo
+            this.streamId = recvPacket.streamId
             this.fromUID = recvPacket.fromUID
             this.channel = new Channel(recvPacket.channelID, recvPacket.channelType)
             this.timestamp = recvPacket.timestamp
@@ -128,10 +130,10 @@ export class Message {
     messageID!: string; // 消息唯一ID
     messageSeq!: number; // 消息序列号
     clientMsgNo!: string // 客户端消息唯一编号
+    streamFlag?: StreamFlag // 流式标记
     streamNo?: string // 流式编号
-    streamSeq?: number // 流式序列号
-    streamFlag!: StreamFlag // 流式标示
-    streams?: StreamItem[] // 流式数据
+    streamId?: string // 流式id
+    streams?: Stream[] // 流式数据
     fromUID!: string; // 发送者uid
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
@@ -666,7 +668,7 @@ export class MessageStream extends MessageContent {
     public decodeJSON(content: any) {
         const dataBase64 = content["data"]
         if (dataBase64 && dataBase64.length > 0) {
-            this.data = Buffer.from(dataBase64, 'base64')
+            this.data = Uint8Array.from(Buffer.from(dataBase64, 'base64')).buffer
         }
     }
     public encodeJSON(): any {
@@ -820,8 +822,19 @@ export class SubscribeConfig {
 export const subscribeConfig = new SubscribeConfig()
 
 
-export class StreamItem {
-    clientMsgNo!: string
-    streamSeq!: number
+export class Stream {
+    streamNo!: string // 流编号
+    streamId?: string // 流id，如果id为空，则表示是新的流
+    channel!: Channel; // 频道
     content: MessageContent | any
+
+    public static fromMessage(message: Message): Stream {
+        const stream = new Stream()
+        stream.streamNo = message.streamNo || ""
+        stream.streamId = message.streamId 
+        stream.channel = message.channel
+        stream.content = message.content
+        return stream
+    }
 }
+

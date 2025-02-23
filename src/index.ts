@@ -10,6 +10,7 @@ import { Channel, ChannelInfo, MediaMessageContent, Message, MessageContent, Mes
 import { ReminderManager } from "./reminder_manager";
 import { WKConfig } from "./config";
 import { ReceiptManager } from "./receipt_manager";
+import { StreamManager } from "./stream_manager";
 
 
 
@@ -25,6 +26,7 @@ export default class WKSDK {
     reminderManager!: ReminderManager
     securityManager!: SecurityManager
     receiptManager!: ReceiptManager
+    streamManager!: StreamManager
     private static instance: WKSDK
 
     public static shared() {
@@ -46,6 +48,7 @@ export default class WKSDK {
         this.securityManager = SecurityManager.shared()
         this.reminderManager = ReminderManager.shared()
         this.receiptManager = ReceiptManager.shared(this.config.receiptFlushInterval)
+        this.streamManager = StreamManager.shared()
 
 
         this.registerFactor((contentType: number): MessageContent | undefined => {

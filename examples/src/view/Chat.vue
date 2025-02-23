@@ -1,14 +1,31 @@
-
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, toRaw, toRefs, unref } from 'vue';
 import APIClient from '../services/APIClient'
 import { useRouter } from "vue-router";
-import { WKSDK, Message, StreamItem, MessageText, Channel, ChannelTypePerson, ChannelTypeGroup, MessageStatus, SyncOptions, PullMode, MessageContent, MessageContentType } from "../../../src/sdk";
+import { WKSDK, Message, MessageText, Channel, ChannelTypePerson, ChannelTypeGroup, MessageStatus, SyncOptions, PullMode, MessageContent, MessageContentType, Stream } from "../../../src/sdk";
 import { ConnectStatus, ConnectStatusListener } from '../../../src/sdk';
 import { SendackPacket, Setting } from '../../../src/sdk';
 import { Buffer } from 'buffer';
 import { MessageListener, MessageStatusListener } from '../../../src/sdk';
 import Conversation from '../components/Conversation/index.vue'
+import { StreamListener } from '../../../src/stream_manager';
+import { Marked } from 'marked';
+import { markedHighlight } from "marked-highlight";
+import hljs from 'highlight.js';
+
+const marked = new Marked(markedHighlight({
+    emptyLangClass: 'hljs',
+    langPrefix: 'hljs language-',
+    highlight(code, lang, info) {
+        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+        return hljs.highlight(code, { language }).value;
+    }
+}));
+
+marked.use({
+    gfm: true,
+});
+
 const router = useRouter();
 const chatRef = ref<HTMLElement | null>(null)
 const showSettingPanel = ref(false)
@@ -35,9 +52,10 @@ const token = router.currentRoute.value.query.token as string || "token111";
 
 title.value = `${uid || ""}(未连接)`
 
-let connectStatusListener!: ConnectStatusListener
-let messageListener!: MessageListener
-let messageStatusListener!: MessageStatusListener
+let connectStatusListener!: ConnectStatusListener // 连接状态监听
+let messageListener!: MessageListener // 消息监听
+let messageStatusListener!: MessageStatusListener // 消息状态监听
+let streamListener!: StreamListener // 流监听
 
 onMounted(() => {
 
@@ -85,38 +103,49 @@ const connectIM = (addr: string) => {
 
     // 监听消息
     messageListener = (msg) => {
-        if(!to.value.isEqual(msg.channel)){
+        if (!to.value.isEqual(msg.channel)) {
             return
         }
-        if (msg.streamOn) {
-            let exist = false
-            for (const message of messages.value) {
-                if (message.streamNo === msg.streamNo) {
-                    let streams = message.streams;
-                    const newStream = new StreamItem()
-                    newStream.clientMsgNo = msg.clientMsgNo
-                    newStream.streamSeq = msg.streamSeq || 0
-                    newStream.content = msg.content
-                    if (streams && streams.length > 0) {
-                        streams.push(newStream)
-                    } else {
-                        streams = [newStream]
-                    }
-                    message.streams = streams
-                    exist = true
-                    break
-                }
-            }
-            if (!exist) {
-                messages.value.push(msg)
-            }
-        } else {
-            messages.value.push(msg)
-        }
+        messages.value.push(msg)
 
         scrollBottom()
     }
     WKSDK.shared().chatManager.addMessageListener(messageListener)
+
+    // 流监听
+    streamListener = (stream: Stream) => {
+        if (!to.value.isEqual(stream.channel)) {
+            return
+        }
+        for (const message of messages.value) {
+            if (message.streamNo === stream.streamNo) {
+                let streams = message.streams;
+                if (streams && streams.length > 0) {
+                    streams.push(stream)
+                } else {
+                    streams = [stream]
+                }
+                streams.sort((a, b) => {
+
+                    if (!a.streamId || !b.streamId) {
+                        return 0
+                    }
+                    if (a.streamId > b.streamId) {
+                        return 1
+                    } else {
+                        return -1
+                    }
+                })
+                message.streams = streams
+                message.content = streamsToMessageText(streams)
+                break
+            }
+            // 刷新ui
+            messages.value = [...messages.value]
+            scrollBottom()
+        }
+    }
+    WKSDK.shared().streamManager.addStreamListener(streamListener)
 
     messageStatusListener = (ack: SendackPacket) => {
         console.log(ack)
@@ -136,6 +165,7 @@ onUnmounted(() => {
     WKSDK.shared().connectManager.removeConnectStatusListener(connectStatusListener)
     WKSDK.shared().chatManager.removeMessageListener(messageListener)
     WKSDK.shared().chatManager.removeMessageStatusListener(messageStatusListener)
+    WKSDK.shared().streamManager.removeStreamListener(streamListener)
     WKSDK.shared().disconnect()
 })
 
@@ -172,6 +202,15 @@ const pullLast = async () => {
         limit: 15, startMessageSeq: 0, endMessageSeq: 0,
         pullMode: PullMode.Up
     })
+
+    // 渲染流消息
+    for (const m of msgs) {
+        if (m.streamOn && m.streams) {
+            m.content = streamsToMessageText(m.streams)
+            console.log("m.content", m.streams)
+        }
+    }
+
     pulldowning.value = false
     if (msgs && msgs.length > 0) {
         msgs.forEach((m) => {
@@ -181,6 +220,8 @@ const pullLast = async () => {
     scrollBottom()
 
 }
+
+// 下拉
 const pullDown = async () => {
     if (messages.value.length == 0) {
         return
@@ -195,6 +236,13 @@ const pullDown = async () => {
         limit: limit, startMessageSeq: firstMsg.messageSeq - 1, endMessageSeq: 0,
         pullMode: PullMode.Down
     })
+    // 渲染流消息
+    for (const m of msgs) {
+        if (m.streamOn && m.streams) {
+            m.content = streamsToMessageText(m.streams)
+        }
+    }
+
     if (msgs.length < limit) {
         pulldownFinished.value = true
     }
@@ -227,7 +275,7 @@ const settingOKClick = () => {
         APIClient.shared.joinChannel(to.value.channelID, to.value.channelType, WKSDK.shared().config.uid || "") // 加入频道
     }
     const conversation = WKSDK.shared().conversationManager.findConversation(to.value)
-    if(!conversation) {
+    if (!conversation) {
         // 如果最近会话不存在，则创建一个空的会话
         WKSDK.shared().conversationManager.createEmptyConversation(to.value)
     }
@@ -333,20 +381,33 @@ const getMessageText = (m: any) => {
             const messageText = m.content as MessageText
             text = messageText.text || ""
         }
-        if (streams && streams.length > 0) { // 流式消息拼接
-            for (const stream of streams) {
-                if (stream.content instanceof MessageText) {
-                    const messageText = stream.content as MessageText
-                    text = text + (messageText.text || "")
-                }
-            }
-        }
+        // if (streams && streams.length > 0) { // 流式消息拼接
+        //     for (const stream of streams) {
+        //         if (stream.content instanceof MessageText) {
+        //             const messageText = stream.content as MessageText
+        //             text = text + (messageText.text || "")
+        //         }
+        //     }
+        // }
         return text
 
     }
-
     return "未知消息"
+}
 
+// 流转文本消息
+const streamsToMessageText = (streams: Stream[]) => {
+    let text = ""
+    for (const stream of streams) {
+        if (stream.content instanceof MessageText) {
+            const messageText = stream.content as MessageText
+            text = text + (messageText.text || "")
+        }
+    }
+    const htmlText = marked.parse(text)
+    if (htmlText) {
+        return new MessageText(htmlText as string)
+    }
 }
 
 const handleScroll = (e: any) => {
@@ -354,7 +415,7 @@ const handleScroll = (e: any) => {
     const scrollOffsetTop = e.target.scrollHeight - (targetScrollTop + e.target.clientHeight);
     if (targetScrollTop <= 250) { // 下拉
         if (pulldowning.value || pulldownFinished.value) {
-            console.log("不允许下拉","pulldowning",pulldowning.value,"pulldownFinished",pulldownFinished.value)
+            console.log("不允许下拉", "pulldowning", pulldowning.value, "pulldownFinished", pulldownFinished.value)
             return
         }
         console.log("下拉")
@@ -399,15 +460,22 @@ const onEnter = () => {
                 {{ title }}
             </div>
             <div class="right" style="display: flex;align-items: center;">
-                <a style="margin-right: 40px;display: flex;align-items: center;font-size: 12px;" href="https://github.com/WuKongIM/WuKongIM" aria-label="github" target="_blank" rel="noopener" data-v-7bc22406="" data-v-36371990="">
-                    <svg role="img" width="32px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg>
+                <a style="margin-right: 40px;display: flex;align-items: center;font-size: 12px;"
+                    href="https://github.com/WuKongIM/WuKongIM" aria-label="github" target="_blank" rel="noopener"
+                    data-v-7bc22406="" data-v-36371990="">
+                    <svg role="img" width="32px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <title>GitHub</title>
+                        <path
+                            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12">
+                        </path>
+                    </svg>
                     &nbsp;&nbsp; 吴彦祖，点个Star呗
                 </a>
                 <button v-on:click="settingClick">{{ to.channelID.length == 0 ? '与谁会话？' : `${to.channelType ==
                     ChannelTypeGroup ? '群' : '单聊'}${to.channelID}` }}</button>
             </div>
         </div>
-        <div class="content" >
+        <div class="content">
             <div class="conversation-box">
                 <Conversation :onSelectChannel="onSelectChannel"></Conversation>
             </div>
@@ -420,15 +488,17 @@ const onEnter = () => {
                                 <div class="text">{{ getMessageText(m) }}</div>
                             </div>
                             <div class="avatar">
-                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`" style="width: 40px;height: 40px;"/>
+                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`"
+                                    style="width: 40px;height: 40px;" />
                             </div>
                         </div>
                         <div class="message" v-if="!m.send" :id="m.clientMsgNo">
                             <div class="avatar">
-                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`" style="width: 40px;height: 40px;"/>
+                                <img :src="`https://api.multiavatar.com/${m.fromUID}.png`"
+                                    style="width: 40px;height: 40px;" />
                             </div>
                             <div class="bubble">
-                                <div class="text">{{ getMessageText(m) }}</div>
+                                <div class="wk-markdown markdown-body" v-html="getMessageText(m)"></div>
                             </div>
                         </div>
                     </template>
@@ -436,7 +506,8 @@ const onEnter = () => {
                 <div class="footer">
                     <input :placeholder="msgInputPlaceholder" v-model="text" style="height: 40px;"
                         @keydown.enter="onEnter" />
-                    <button class="message-stream" v-on:click="onMessageStream">{{ startStreamMessage ? '停止流消息' : '开启流消息'
+                    <button class="message-stream" v-on:click="onMessageStream">{{ startStreamMessage ? '停止流消息' :
+                        '开启流消息'
                     }}</button>
                     <button v-on:click="onSend">发送</button>
                 </div>
@@ -463,7 +534,7 @@ const onEnter = () => {
     </transition>
 </template>
 
-<style scoped>
+<style>
 .chat {
     width: 100%;
     height: 100vh;
@@ -593,14 +664,31 @@ const onEnter = () => {
     align-items: center;
 }
 
-.message .bubble .text {
-    display: flex;
+.message .bubble .wk-markdown {
+    display: block;
     text-align: left;
     font-size: 14px;
-    max-width: 250px;
+    max-width: 320px;
     word-break: break-all;
+    overflow-y: auto;
 }
 
+.wk-markdown ul {
+    margin: 12px 0px;
+    padding-left: 24px;
+}
+
+.wk-markdown ol {
+    margin: 12px 0px;
+    padding-left: 24px;
+}
+
+.wk-markdown p {
+    margin: 12px 0;
+    padding: 0px;
+    font-size: 14px;
+    line-height: 25px;
+}
 
 .footer {
     height: 60px;
@@ -709,6 +797,7 @@ const onEnter = () => {
     width: 120px !important;
     height: 40px;
 }
+
 .message-box {
     width: 100%;
     height: 100%;

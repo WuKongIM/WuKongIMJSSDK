@@ -45,14 +45,14 @@ export class Setting {
   }
 
   public toUint8(): number {
-    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.topic) << 3 | this.boolToInt(this.streamOn) << 2
+    return this.boolToInt(this.receiptEnabled) << 7 | this.boolToInt(this.topic) << 3 | this.boolToInt(this.streamOn) << 1
   }
 
   public static fromUint8(v: number): Setting {
     let setting = new Setting()
     setting.receiptEnabled = (v >> 7 & 0x01) > 0
     setting.topic = (v >> 3 & 0x01) > 0
-    setting._streamOn = (v >> 2 & 0x01) > 0
+    setting._streamOn = (v >> 1 & 0x01) > 0
     return setting
   }
 
@@ -168,9 +168,9 @@ export class RecvPacket extends Packet {
   messageID!: string; // 消息ID
   messageSeq!: number; // 消息序列号
   clientMsgNo!: string // 客户端唯一消息编号
-  streamNo!: string // 流式编号
-  streamSeq!: number // 流式序列号
   streamFlag!: StreamFlag // 流式标示
+  streamNo!: string // 流式编号
+  streamId!: string // 流式id
   timestamp!: number; // 消息时间戳
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
@@ -428,9 +428,9 @@ export default class Proto implements IProto {
     }
     p.clientMsgNo = decode.readString();
     if (p.setting.streamOn) {
-      p.streamNo = decode.readString();
-      p.streamSeq = decode.readInt32();
       p.streamFlag = decode.readByte();
+      p.streamNo = decode.readString();
+      p.streamId = decode.readInt64().toString();
     }
     p.messageID = decode.readInt64().toString();
     p.messageSeq = decode.readInt32();
