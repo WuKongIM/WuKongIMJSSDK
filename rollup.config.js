@@ -1,7 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import typescript from '@rollup/plugin-typescript'
-import nodePolyfills from 'rollup-plugin-polyfill-node';
+// import nodePolyfills from 'rollup-plugin-polyfill-node';
 // import builtins from 'rollup-plugin-node-builtins';
 import pkg from './package.json'
 

@@ -1,4 +1,4 @@
-import { RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
+import { ChunkPacket, RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
 import WKSDK from './index';
 import { MessageContentType } from "./const"
 
@@ -93,9 +93,6 @@ export class Message {
             this.messageID = recvPacket.messageID
             this.messageSeq = recvPacket.messageSeq
             this.clientMsgNo = recvPacket.clientMsgNo
-            this.streamFlag = recvPacket.streamFlag
-            this.streamNo = recvPacket.streamNo
-            this.streamId = recvPacket.streamId
             this.fromUID = recvPacket.fromUID
             this.channel = new Channel(recvPacket.channelID, recvPacket.channelType)
             this.timestamp = recvPacket.timestamp
@@ -108,7 +105,6 @@ export class Message {
         m.header.reddot = true
         m.setting = sendPacket.setting
         m.clientMsgNo = sendPacket.clientMsgNo
-        m.streamNo = sendPacket.streamNo
         m.clientSeq = sendPacket.clientSeq
         m.fromUID = sendPacket.fromUID
         m.channel = new Channel(sendPacket.channelID, sendPacket.channelType)
@@ -130,14 +126,11 @@ export class Message {
     messageID!: string; // 消息唯一ID
     messageSeq!: number; // 消息序列号
     clientMsgNo!: string // 客户端消息唯一编号
-    streamFlag?: StreamFlag // 流式标记
-    streamNo?: string // 流式编号
-    streamId?: string // 流式id
-    streams?: Stream[] // 流式数据
     fromUID!: string; // 发送者uid
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
     content!: MessageContent | any; // 消息负载
+    streamText?: string // 流式文本内容（拼接后的）
     status!: MessageStatus; // 消息状态 1.成功 其他失败
     voicePlaying: boolean = false; // 语音是否在播放中 （语音消息特有）
     voiceReaded: boolean = false; // 语音消息是否已读
@@ -153,13 +146,6 @@ export class Message {
 
     public get contentType(): number {
         return this.content.contentType
-    }
-
-    public get streamOn(): boolean {
-        if (this.streamNo && this.streamNo !== '') {
-            return true
-        }
-        return false
     }
 }
 
@@ -823,18 +809,50 @@ export const subscribeConfig = new SubscribeConfig()
 
 
 export class Stream {
-    streamNo!: string // 流编号
-    streamId?: string // 流id，如果id为空，则表示是新的流
-    channel!: Channel; // 频道
-    content: MessageContent | any
+    initMessage?: Message
+    private _chunks = new Array<ChunkPacket>()
+    private _isEnd = false
+    private _endReason?:number
 
     public static fromMessage(message: Message): Stream {
         const stream = new Stream()
-        stream.streamNo = message.streamNo || ""
-        stream.streamId = message.streamId 
-        stream.channel = message.channel
-        stream.content = message.content
+        stream.initMessage = message
         return stream
+    }
+
+    public addChunk(chunk: ChunkPacket) {
+        this._chunks.push(chunk)
+        if (chunk.end) {
+            this._isEnd = true
+            this._endReason = chunk.endReason
+        }
+    }
+
+    public get isEnd() {
+        return this._isEnd
+    }
+    public get endReason() {
+        return this._endReason
+    }
+
+    public get chunks() {
+        const sortedChunks = this._chunks.sort((a, b) => a.chunkID - b.chunkID)
+        return sortedChunks
+    }
+
+    public get data() : Buffer {
+        if (this._chunks.length === 0) {
+            return Buffer.from([])
+        }
+        // sort chunk
+        const sortedChunks = this._chunks.sort((a, b) => a.chunkID - b.chunkID)
+        const buffers = sortedChunks.map((chunk) => chunk.payload)
+        return Buffer.concat(buffers)
+    }
+
+    // utf8 encode support chinese
+    public get text() {
+        return this.data.toString('utf8')
     }
 }
 

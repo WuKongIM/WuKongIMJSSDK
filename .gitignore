@@ -2,6 +2,7 @@
 /dist
 /lib
 .DS_Store
+src/version.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

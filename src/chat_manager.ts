@@ -2,7 +2,7 @@ import { MessageContentType } from "./const";
 import { Guid } from "./guid";
 import WKSDK, { Stream } from "./index";
 import { Channel, ChannelTypePerson, MediaMessageContent, Message, MessageContent, SyncOptions, MessageSignalContent } from "./model";
-import { Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting, StreamFlag } from "./proto";
+import { ChunkPacket, Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting, StreamFlag } from "./proto";
 import { Task, MessageTask, TaskStatus } from "./task";
 import { Md5 } from "md5-typescript";
 import { SecurityManager } from "./security";
@@ -14,6 +14,7 @@ export type MessageStatusListener = ((p: SendackPacket) => void);
 export class ChatManager {
     cmdListeners: ((message: Message) => void)[] = new Array(); // 命令类消息监听
     listeners: MessageListener[] = new Array(); // 收取消息监听
+    chunkListeners: ((chunk: ChunkPacket) => void)[] = new Array(); // 分片消息监听
     sendingQueues: Map<number, SendPacket> = new Map(); // 发送中的消息
     sendPacketQueue: Packet[] = [] // 发送队列
     sendTimer: any // 发送定时器
@@ -66,13 +67,17 @@ export class ChatManager {
                 this.notifyCMDListeners(message);
                 return;
             }
-            if (message.setting.streamOn && message.streamFlag !== undefined && message.streamFlag !== StreamFlag.START) {
-                // 通知流监听者
-                StreamManager.shared().notifyStreamListeners(Stream.fromMessage(message))
-            }else {
-                // 通知消息监听者
-                this.notifyMessageListeners(message);
+
+            if (message.setting.streamOn) {
+                const stream = StreamManager.shared().openStream(message)
+                if (stream) {
+                    StreamManager.shared().notifyStreamChangeListeners(stream)
+                }
+                return
             }
+
+             // 通知消息监听者
+            this.notifyMessageListeners(message);
             
             WKSDK.shared().channelManager.notifySubscribeIfNeed(message); // 通知指定的订阅者
         } else if (packet instanceof SendackPacket) {
@@ -80,6 +85,18 @@ export class ChatManager {
             this.sendingQueues.delete(sendack.clientSeq);
             // 发送消息回执
             this.notifyMessageStatusListeners(sendack);
+        } else if (packet instanceof ChunkPacket) {
+            // 消息分片
+            const stream = StreamManager.shared().getStream(packet.messageID)
+            if(!stream) {
+                console.log("没有找到对应的流，忽略分片消息","消息ID:",packet.messageID,"分片ID:",packet.chunkID)
+                return
+            }
+            if (stream.isEnd) {
+                console.log("warn:流已经结束，但是仍然收到分片消息","消息ID:",packet.messageID,"分片ID:",packet.chunkID,"分片内容:",packet.payload)
+            }
+            stream.addChunk(packet)
+            StreamManager.shared().notifyStreamChangeListeners(stream);
         }
 
     }

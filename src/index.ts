@@ -142,6 +142,7 @@ export * from "./task"
 export * from "./channel_manager"
 export * from "./provider"
 export * from "./stream_manager"
+export * from "./config"
 
 // const self = WKSDK.shared();
 // window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象

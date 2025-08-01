@@ -1,6 +1,6 @@
 {
   "name": "wukongimjssdk",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "",
   "main": "lib/wukongimjssdk.cjs.js",
   "module": "lib/wukongimjssdk.esm.js",
@@ -23,6 +23,7 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
+    "prebuild": "node scripts/generate-version.js",
     "build": "rollup -c",
     "dev": "rollup -c -w",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.3",
     "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-replace": "^6.0.2",
     "@rollup/plugin-typescript": "^11.1.2",
     "@types/ms": "^0.7.31",
     "@types/node": "^16.9.1",

@@ -19,6 +19,7 @@ export enum PacketType {
   DISCONNECT = 9, // 请求断开连接
   SUB = 10, // 订阅
   SUBACK = 11, // 订阅确认
+  CHUNK = 12, // 分片数据包
 }
 
 export class Setting {
@@ -70,6 +71,8 @@ export class Packet {
     this.syncOnce = f.syncOnce;
     this.dup = f.dup;
     this.remainingLength = f.remainingLength;
+    this.hasServerVersion = f.hasServerVersion;
+    this.end = f.end;
     this._packetType = f._packetType;
   }
 
@@ -80,6 +83,7 @@ export class Packet {
   syncOnce!: boolean; // 是否只同步一次
   dup!: boolean; // 是否是重发
   hasServerVersion!: boolean; // connack包是否返回了服务器版本号
+  end: boolean = false; // 是否是最后一个分片
   public set packetType(packetType: PacketType) {
     this._packetType = packetType;
   }
@@ -168,9 +172,6 @@ export class RecvPacket extends Packet {
   messageID!: string; // 消息ID
   messageSeq!: number; // 消息序列号
   clientMsgNo!: string // 客户端唯一消息编号
-  streamFlag!: StreamFlag // 流式标示
-  streamNo!: string // 流式编号
-  streamId!: string // 流式id
   timestamp!: number; // 消息时间戳
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
@@ -250,6 +251,18 @@ export class SubackPacket extends Packet {
   }
 }
 
+export class ChunkPacket extends Packet {
+  /* tslint:disable-line */
+  messageID!: string;
+  chunkID!: number;
+  payload!: Uint8Array;
+  end: boolean = false;
+  endReason: number = 0;
+  public get packetType() {
+    return PacketType.CHUNK;
+  }
+}
+
 export interface IProto {
   encode(f: Packet): Uint8Array
   decode(data: Uint8Array): Packet
@@ -271,6 +284,7 @@ export default class Proto implements IProto {
     this.packetDecodeMap[PacketType.SENDACK] = this.decodeSendackPacket;
     this.packetDecodeMap[PacketType.DISCONNECT] = this.decodeDisconnect;
     this.packetDecodeMap[PacketType.SUBACK] = this.decodeSuback;
+    this.packetDecodeMap[PacketType.CHUNK] = this.decodeChunk;
   }
   encode(f: Packet) {
     const enc = new Encoder();
@@ -427,11 +441,6 @@ export default class Proto implements IProto {
       p.expire = decode.readInt32()
     }
     p.clientMsgNo = decode.readString();
-    if (p.setting.streamOn) {
-      p.streamFlag = decode.readByte();
-      p.streamNo = decode.readString();
-      p.streamId = decode.readInt64().toString();
-    }
     p.messageID = decode.readInt64().toString();
     p.messageSeq = decode.readInt32();
     p.timestamp = decode.readInt32();
@@ -449,6 +458,16 @@ export default class Proto implements IProto {
     p.clientSeq = decode.readInt32();
     p.messageSeq = decode.readInt32();
     p.reasonCode = decode.readByte();
+    return p;
+  }
+
+  decodeChunk(f: Packet, decode: Decoder) {
+    const p = new ChunkPacket();
+    p.from(f);
+    p.messageID = decode.readInt64().toString();
+    p.chunkID = decode.readInt64().toNumber()
+    p.endReason = decode.readByte();
+    p.payload = decode.readRemaining();
     return p;
   }
 
@@ -481,6 +500,8 @@ export default class Proto implements IProto {
     }
     if (f.packetType === PacketType.CONNACK) {
       f.hasServerVersion = (b & 0x01) > 0;
+    } else if (f.packetType === PacketType.CHUNK) {
+      f.end = true;
     }
     return f;
   }
