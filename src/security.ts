@@ -72,26 +72,26 @@ export class SecurityManager {
     //       return publicPreKey
     // }
 
-    public async signalDecrypt(recipientID: string, messageData: Uint8Array): Promise<ArrayBuffer> {
-        // const recipientAddress = new SignalProtocolAddress(recipientID, this.deviceID);
+    // public async signalDecrypt(recipientID: string, messageData: Uint8Array): Promise<ArrayBuffer> {
+    //     // const recipientAddress = new SignalProtocolAddress(recipientID, this.deviceID);
 
-        // const cipher = new SessionCipher(this.store, recipientAddress);
+    //     // const cipher = new SessionCipher(this.store, recipientAddress);
 
-        // let type = messageData[0]
-        // let message = messageData.subarray(1)
+    //     // let type = messageData[0]
+    //     // let message = messageData.subarray(1)
 
-        // const encodedString = uint8ArrayToString(message)
+    //     // const encodedString = uint8ArrayToString(message)
 
-        // console.log('type--->',type)
-        // let messageBuff = Uint8Array.from(Buffer.from(encodedString, "base64")).buffer
-        // if (type === 3) {
+    //     // console.log('type--->',type)
+    //     // let messageBuff = Uint8Array.from(Buffer.from(encodedString, "base64")).buffer
+    //     // if (type === 3) {
 
-        //     return cipher.decryptPreKeyWhisperMessage(messageBuff)
-        // }
-        // return cipher.decryptWhisperMessage(messageBuff)
+    //     //     return cipher.decryptPreKeyWhisperMessage(messageBuff)
+    //     // }
+    //     // return cipher.decryptWhisperMessage(messageBuff)
 
-        return messageData.buffer
-    }
+    //     return messageData.buffer
+    // }
 
     public async signalEncrypt(recipientID: string, contentData: Uint8Array) {
         // const recipientAddress = new SignalProtocolAddress(recipientID, this.deviceID);

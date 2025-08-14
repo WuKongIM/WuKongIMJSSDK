@@ -144,6 +144,7 @@ export class ConnectManager {
         })
 
         this.ws.onmessage((data: any) => {
+            console.log('onmessage...',data);
             self.unpacket(new Uint8Array(data), (packets) => {
                 if (packets.length > 0) {
                     for (const packetData of packets) {

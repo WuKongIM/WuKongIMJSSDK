@@ -10,3 +10,10 @@ export class MessageContentType {
 
     static signalMessage:number = 21000 // signal
 }
+
+
+export class EventType {
+    static TextMessageStart = "___TextMessageStart" // 文本消息开始
+    static TextMessageContent = "___TextMessageContent" // 追加文本消息
+    static TextMessageEnd = "___TextMessageEnd" // 文本消息结束
+}

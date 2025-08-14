@@ -19,27 +19,14 @@ export enum PacketType {
   DISCONNECT = 9, // 请求断开连接
   SUB = 10, // 订阅
   SUBACK = 11, // 订阅确认
-  CHUNK = 12, // 分片数据包
+  Event = 12, // 分片数据包
 }
 
 export class Setting {
   receiptEnabled: boolean = false // 消息回执是否开启
   topic: boolean = false // 是否存在话题
   private _streamOn: boolean = false
-  private _streamNo: string = '' // 流号
 
-  public set streamNo(v: string) {
-    if (v && v !== '') {
-      this._streamOn = true
-    } else {
-      this._streamOn = false
-    }
-
-    this._streamNo = v
-  }
-  public get streamNo() {
-    return this._streamNo
-  }
 
   public get streamOn(): boolean {
     return this._streamOn
@@ -138,7 +125,6 @@ export class SendPacket extends Packet {
   setting!: Setting // 设置
   clientSeq!: number;
   clientMsgNo!: string; // 客户端唯一消息编号（用于消息去重）
-  streamNo!: string; // 流式编号
   channelID!: string; // 频道ID
   channelType!: number; // 频道类型
   expire?: number // 消息过期时间
@@ -251,15 +237,14 @@ export class SubackPacket extends Packet {
   }
 }
 
-export class ChunkPacket extends Packet {
+export class EventPacket extends Packet {
   /* tslint:disable-line */
-  messageID!: string;
-  chunkID!: number;
-  payload!: Uint8Array;
-  end: boolean = false;
-  endReason: number = 0;
+  id: string = "";
+  type!: string;
+  timestamp: number = 0;
+  data: Uint8Array = new Uint8Array(0);
   public get packetType() {
-    return PacketType.CHUNK;
+    return PacketType.Event;
   }
 }
 
@@ -284,7 +269,7 @@ export default class Proto implements IProto {
     this.packetDecodeMap[PacketType.SENDACK] = this.decodeSendackPacket;
     this.packetDecodeMap[PacketType.DISCONNECT] = this.decodeDisconnect;
     this.packetDecodeMap[PacketType.SUBACK] = this.decodeSuback;
-    this.packetDecodeMap[PacketType.CHUNK] = this.decodeChunk;
+    this.packetDecodeMap[PacketType.Event] = this.decodeEvent;
   }
   encode(f: Packet) {
     const enc = new Encoder();
@@ -345,10 +330,6 @@ export default class Proto implements IProto {
       packet.clientMsgNo = getUUID();
     }
     enc.writeString(packet.clientMsgNo);
-
-    if (packet.setting.streamOn) {
-      enc.writeString(packet.streamNo);
-    }
 
     // channel
     enc.writeString(packet.channelID);
@@ -461,13 +442,13 @@ export default class Proto implements IProto {
     return p;
   }
 
-  decodeChunk(f: Packet, decode: Decoder) {
-    const p = new ChunkPacket();
+  decodeEvent(f: Packet, decode: Decoder) {
+    const p = new EventPacket();
     p.from(f);
-    p.messageID = decode.readInt64().toString();
-    p.chunkID = decode.readInt64().toNumber()
-    p.endReason = decode.readByte();
-    p.payload = decode.readRemaining();
+    p.id = decode.readString();
+    p.type = decode.readString();
+    p.timestamp = decode.readInt32();
+    p.data = decode.readRemaining();
     return p;
   }
 
@@ -500,8 +481,6 @@ export default class Proto implements IProto {
     }
     if (f.packetType === PacketType.CONNACK) {
       f.hasServerVersion = (b & 0x01) > 0;
-    } else if (f.packetType === PacketType.CHUNK) {
-      f.end = true;
     }
     return f;
   }

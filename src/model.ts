@@ -1,4 +1,4 @@
-import { ChunkPacket, RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
+import { EventPacket, RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
 import WKSDK from './index';
 import { MessageContentType } from "./const"
 
@@ -59,10 +59,10 @@ function decodePayload(payload: Uint8Array): MessageContent {
         }
     }
     const messageContent = MessageContentManager.shared().getMessageContent(contentType)
-    if(payload && payload.length > 0) {
+    if (payload && payload.length > 0) {
         messageContent.decode(payload)
     }
-    
+
     return messageContent
 }
 
@@ -614,11 +614,11 @@ export class MessageImage extends MediaMessageContent {
         this.height = height || 0;
     }
 
-    set url (ul: string) {
+    set url(ul: string) {
         this._url = ul
         this.remoteUrl = ul
     }
-    get url () {
+    get url() {
         return this._url
     }
     decodeJSON(content: any) {
@@ -629,7 +629,7 @@ export class MessageImage extends MediaMessageContent {
     }
     encodeJSON() {
         let ul = this.remoteUrl
-        if(!ul || ul.length === 0) {
+        if (!ul || ul.length === 0) {
             ul = this.url
         }
         return { "width": this.width || 0, "height": this.height || 0, "url": ul || "" }
@@ -806,53 +806,4 @@ export class SubscribeConfig {
 }
 
 export const subscribeConfig = new SubscribeConfig()
-
-
-export class Stream {
-    initMessage?: Message
-    private _chunks = new Array<ChunkPacket>()
-    private _isEnd = false
-    private _endReason?:number
-
-    public static fromMessage(message: Message): Stream {
-        const stream = new Stream()
-        stream.initMessage = message
-        return stream
-    }
-
-    public addChunk(chunk: ChunkPacket) {
-        this._chunks.push(chunk)
-        if (chunk.end) {
-            this._isEnd = true
-            this._endReason = chunk.endReason
-        }
-    }
-
-    public get isEnd() {
-        return this._isEnd
-    }
-    public get endReason() {
-        return this._endReason
-    }
-
-    public get chunks() {
-        const sortedChunks = this._chunks.sort((a, b) => a.chunkID - b.chunkID)
-        return sortedChunks
-    }
-
-    public get data() : Buffer {
-        if (this._chunks.length === 0) {
-            return Buffer.from([])
-        }
-        // sort chunk
-        const sortedChunks = this._chunks.sort((a, b) => a.chunkID - b.chunkID)
-        const buffers = sortedChunks.map((chunk) => chunk.payload)
-        return Buffer.concat(buffers)
-    }
-
-    // utf8 encode support chinese
-    public get text() {
-        return this.data.toString('utf8')
-    }
-}
 

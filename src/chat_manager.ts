@@ -1,12 +1,13 @@
 import { MessageContentType } from "./const";
 import { Guid } from "./guid";
-import WKSDK, { Stream } from "./index";
-import { Channel, ChannelTypePerson, MediaMessageContent, Message, MessageContent, SyncOptions, MessageSignalContent } from "./model";
-import { ChunkPacket, Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting, StreamFlag } from "./proto";
+import WKSDK from "./index";
+import { Channel, MediaMessageContent, Message, MessageContent, SyncOptions, MessageSignalContent } from "./model";
+import {  EventPacket, Packet, RecvackPacket, RecvPacket, SendackPacket, SendPacket, Setting, StreamFlag } from "./proto";
 import { Task, MessageTask, TaskStatus } from "./task";
 import { Md5 } from "md5-typescript";
 import { SecurityManager } from "./security";
-import { StreamManager } from "./stream_manager";
+import { WKEventManager } from "./event_manager";
+import { WKEvent } from "./event_manager";
 
 export type MessageListener = ((message: Message) => void);
 export type MessageStatusListener = ((p: SendackPacket) => void);
@@ -14,7 +15,6 @@ export type MessageStatusListener = ((p: SendackPacket) => void);
 export class ChatManager {
     cmdListeners: ((message: Message) => void)[] = new Array(); // 命令类消息监听
     listeners: MessageListener[] = new Array(); // 收取消息监听
-    chunkListeners: ((chunk: ChunkPacket) => void)[] = new Array(); // 分片消息监听
     sendingQueues: Map<number, SendPacket> = new Map(); // 发送中的消息
     sendPacketQueue: Packet[] = [] // 发送队列
     sendTimer: any // 发送定时器
@@ -58,7 +58,7 @@ export class ChatManager {
                 return
             }
             recvPacket.payload = SecurityManager.shared().decryption(recvPacket.payload)
-
+            console.log("消息内容-->",recvPacket)
             // const setting = Setting.fromUint8(recvPacket.setting)
 
             const message = new Message(recvPacket)
@@ -66,14 +66,6 @@ export class ChatManager {
             if (message.contentType === MessageContentType.cmd) { // 命令类消息分流处理
                 this.notifyCMDListeners(message);
                 return;
-            }
-
-            if (message.setting.streamOn) {
-                const stream = StreamManager.shared().openStream(message)
-                if (stream) {
-                    StreamManager.shared().notifyStreamChangeListeners(stream)
-                }
-                return
             }
 
              // 通知消息监听者
@@ -85,18 +77,9 @@ export class ChatManager {
             this.sendingQueues.delete(sendack.clientSeq);
             // 发送消息回执
             this.notifyMessageStatusListeners(sendack);
-        } else if (packet instanceof ChunkPacket) {
-            // 消息分片
-            const stream = StreamManager.shared().getStream(packet.messageID)
-            if(!stream) {
-                console.log("没有找到对应的流，忽略分片消息","消息ID:",packet.messageID,"分片ID:",packet.chunkID)
-                return
-            }
-            if (stream.isEnd) {
-                console.log("warn:流已经结束，但是仍然收到分片消息","消息ID:",packet.messageID,"分片ID:",packet.chunkID,"分片内容:",packet.payload)
-            }
-            stream.addChunk(packet)
-            StreamManager.shared().notifyStreamChangeListeners(stream);
+        } else if (packet instanceof EventPacket) { // 事件消息
+            const event = new WKEvent(packet)
+            WKEventManager.shared().notifyEventListeners(event);
         }
 
     }
@@ -195,7 +178,6 @@ export class ChatManager {
         packet.setting = setting
         packet.reddot = true;
         packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}3`
-        packet.streamNo = setting.streamNo
         packet.clientSeq = this.getClientSeq()
         packet.fromUID = WKSDK.shared().config.uid || '';
         packet.channelID = channel.channelID;
@@ -211,7 +193,6 @@ export class ChatManager {
         packet.setting = setting
         packet.reddot = true;
         packet.clientMsgNo = `${Guid.create().toString().replace(/-/gi, "")}_${WKSDK.shared().config.clientMsgDeviceId}_3`
-        packet.streamNo = setting.streamNo
         packet.clientSeq = this.getClientSeq()
         packet.fromUID = WKSDK.shared().config.uid || '';
         packet.channelID = channel.channelID;
