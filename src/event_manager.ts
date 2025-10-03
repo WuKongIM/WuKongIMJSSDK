@@ -6,7 +6,8 @@ import { uint8ArrayToString } from "./security";
 export type WKEventListener = ((event: WKEvent) => void);
 
 export class WKEventManager {
-    eventListeners: WKEventListener[] = new Array(); //事件监听
+    // 事件监听
+    eventListeners: WKEventListener[] = new Array();
     private static instance: WKEventManager
     public static shared() {
         if (!this.instance) {

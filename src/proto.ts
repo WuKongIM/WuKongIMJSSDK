@@ -447,7 +447,7 @@ export default class Proto implements IProto {
     p.from(f);
     p.id = decode.readString();
     p.type = decode.readString();
-    p.timestamp = decode.readInt32();
+    p.timestamp = decode.readInt64().toNumber();
     p.data = decode.readRemaining();
     return p;
   }
