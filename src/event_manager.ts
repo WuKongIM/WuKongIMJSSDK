@@ -45,7 +45,7 @@ export class WKEventManager {
 }
 
 export class WKEvent extends EventPacket {
-    public dataText?: string // 文本数据
+    public dataJson?: any
 
     constructor(packet: EventPacket) {
         super()
@@ -55,6 +55,6 @@ export class WKEvent extends EventPacket {
         this.data = packet.data
 
         const text = String.fromCharCode.apply(null, Array.from(packet.data))
-        this.dataText = decodeURIComponent(escape(text))
+        this.dataJson = JSON.parse(decodeURIComponent(escape(text)))
     }
 }
