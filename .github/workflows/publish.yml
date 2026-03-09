@@ -11,16 +11,49 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
-          registry-url: https://registry.npmjs.org
+          node-version: '20'
+          cache: 'npm'
 
-      - run: npm ci
+      - name: Update npm
+        run: npm install -g npm@latest
 
-      - run: npm run build
+      - name: Install dependencies
+        run: npm ci
 
-      - run: npm publish --provenance --access public
+      - name: Verify package version matches tag
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Package version: $PACKAGE_VERSION"
+          echo "Tag version: $TAG_VERSION"
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: Package version ($PACKAGE_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Build project
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+
+      - name: Create GitHub release summary
+        run: |
+          echo "## Successfully published to npm" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** \`wukongimjssdk\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`$(node -p "require('./package.json').version")\`" >> $GITHUB_STEP_SUMMARY
+          echo "**NPM Link:** https://www.npmjs.com/package/wukongimjssdk" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm install wukongimjssdk" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
