@@ -28,7 +28,8 @@
     "dev": "rollup -c -w",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
-    "test": "npm run build && node --test tests/*.test.cjs",
+    "test": "npm run build && npm run test:unit",
+    "test:unit": "node --test tests/*.test.cjs",
     "typecheck": "tsc --noEmit",
     "test:integration": "node tests/message-editing.integration.cjs"
   },
