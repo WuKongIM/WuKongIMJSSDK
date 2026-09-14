@@ -14,7 +14,13 @@ export type ConversationListener = ((conversation: Conversation, action: Convers
 export class ConversationManager {
     listeners: ConversationListener[] = new Array(); // 最近会话通知
     conversations: Conversation[] = new Array() // 最近会话列表
-    openConversation?: Conversation // 当前打开的最近会话
+    private _openConversation?: Conversation
+    get openConversation(): Conversation | undefined { return this._openConversation }
+    /** The existing visible-conversation property also scopes edit synchronization. */
+    set openConversation(value: Conversation | undefined) {
+        this._openConversation = value
+        WKSDK.shared().messageUpdateManager?.setActive(value?.channel)
+    }
     maxExtraVersion: number = 0// 最大扩展的版本号
 
     private _noUpdateContentType: number[] = [] // 不更新的消息类型
@@ -47,10 +53,19 @@ export class ConversationManager {
     }
 
     // 同步最近会话
-    sync(filter?: any): Promise<Conversation[]> {
+    async sync(filter?: any): Promise<Conversation[]> {
+        if (WKSDK.shared().messageUpdateManager.enabled) {
+            const conversations = await WKSDK.shared().messageUpdateManager.syncConversations(filter)
+            for (const conversation of conversations) {
+                this.maxExtraVersion = Math.max(this.maxExtraVersion, conversation.remoteExtra.version || 0)
+            }
+            WKSDK.shared().reminderManager.sync().catch((err) => console.log('同步提醒失败', err))
+            return conversations
+        }
         const syncProvide = WKSDK.shared().config.provider.syncConversationsCallback(filter)
         if (syncProvide) {
-            syncProvide.then((conversations) => {
+            syncProvide.then((provided) => {
+                const conversations = Array.isArray(provided) ? provided : provided.data
                 this.conversations = conversations
                 if (conversations.length > 0) {
                     for (const conversation of conversations) {
@@ -64,7 +79,8 @@ export class ConversationManager {
                 console.log('同步最近会话失败！', err)
             })
         }
-        return syncProvide
+        const response = await syncProvide
+        return Array.isArray(response) ? response : response.data
     }
 
     async syncExtra(): Promise<ConversationExtra[] | undefined> {

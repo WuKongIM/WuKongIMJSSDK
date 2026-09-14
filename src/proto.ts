@@ -263,6 +263,7 @@ export default class Proto implements IProto {
     this.packetEncodeMap[PacketType.SEND] = this.encodeSend;
     this.packetEncodeMap[PacketType.RECVACK] = this.encodeRecvack;
     this.packetEncodeMap[PacketType.SUB] = this.encodeSub;
+    this.packetEncodeMap[PacketType.Event] = this.encodeEvent;
     // 解码
     this.packetDecodeMap[PacketType.CONNACK] = this.decodeConnect;
     this.packetDecodeMap[PacketType.RECV] = this.decodeRecvPacket;
@@ -440,6 +441,16 @@ export default class Proto implements IProto {
     p.messageSeq = decode.readInt32();
     p.reasonCode = decode.readByte();
     return p;
+  }
+
+  // EVENT opt-in is sent only after an authenticated connection is active.
+  encodeEvent(packet: EventPacket) {
+    const enc = new Encoder();
+    enc.writeString(packet.id);
+    enc.writeString(packet.type);
+    enc.writeInt64(new BigNumber(packet.timestamp));
+    enc.writeBytes(Array.from(packet.data));
+    return enc.toUint8Array();
   }
 
   decodeEvent(f: Packet, decode: Decoder) {

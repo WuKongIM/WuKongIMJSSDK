@@ -8,6 +8,7 @@ import { Md5 } from "md5-typescript";
 import { SecurityManager } from "./security";
 import { WKEventManager } from "./event_manager";
 import { WKEvent } from "./event_manager";
+import { MessageUpdateListener } from "./message_updates";
 
 export type MessageListener = ((message: Message) => void);
 export type MessageStatusListener = ((p: SendackPacket) => void);
@@ -61,13 +62,14 @@ export class ChatManager {
             console.log("消息内容-->",recvPacket)
             // const setting = Setting.fromUint8(recvPacket.setting)
 
-            const message = new Message(recvPacket)
+            let message = new Message(recvPacket)
             this.sendRecvackPacket(recvPacket);
             if (message.contentType === MessageContentType.cmd) { // 命令类消息分流处理
                 this.notifyCMDListeners(message);
                 return;
             }
 
+            message = WKSDK.shared().messageUpdateManager.observeMessage(message)
              // 通知消息监听者
             this.notifyMessageListeners(message);
             
@@ -88,7 +90,22 @@ export class ChatManager {
         if (!WKSDK.shared().config.provider.syncMessagesCallback) {
             throw new Error("没有设置WKSDK.shared().config.provider.syncMessagesCallback")
         }
-        return WKSDK.shared().config.provider.syncMessagesCallback!(channel, opts)
+        if (WKSDK.shared().messageUpdateManager.enabled) {
+            return WKSDK.shared().messageUpdateManager.syncMessages(channel, opts)
+        }
+        const response = await WKSDK.shared().config.provider.syncMessagesCallback!(channel, opts)
+        return Array.isArray(response) ? response : response.data
+    }
+
+    /** Replace an acknowledged message's payload without sending a new message. */
+    updateMessage(message: Message, content: MessageContent): Promise<Message> {
+        return WKSDK.shared().messageUpdateManager.updateMessage(message, content)
+    }
+    addMessageUpdateListener(listener: MessageUpdateListener) {
+        WKSDK.shared().messageUpdateManager.addListener(listener)
+    }
+    removeMessageUpdateListener(listener: MessageUpdateListener) {
+        WKSDK.shared().messageUpdateManager.removeListener(listener)
     }
 
     async syncMessageExtras(channel: Channel, extraVersion: number) {

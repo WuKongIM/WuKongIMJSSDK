@@ -1,6 +1,7 @@
 import { EventPacket, RecvPacket, SendPacket, Setting, StreamFlag } from './proto';
 import WKSDK from './index';
 import { MessageContentType } from "./const"
+import { Buffer } from "buffer"
 
 
 // ---------- 频道类型 ----------
@@ -48,11 +49,10 @@ export class Reaction {
     users!: any[] // 回应用户
 }
 
-function decodePayload(payload: Uint8Array): MessageContent {
+export function decodePayload(payload: Uint8Array): MessageContent {
     let contentType = 0
     if (payload && payload.length > 0) {
-        const encodedString = String.fromCharCode.apply(null, Array.from(payload));
-        const decodedString = decodeURIComponent(escape(encodedString));
+        const decodedString = Buffer.from(payload).toString("utf8");
         const contentObj = JSON.parse(decodedString)
         if (contentObj) {
             contentType = contentObj.type
@@ -130,6 +130,13 @@ export class Message {
     channel!: Channel; // 频道
     timestamp!: number; // 消息发送时间
     content!: MessageContent | any; // 消息负载
+    /** Decimal payload version, independent of MessageExtra.extraVersion. */
+    contentVersion: string = "0"
+    /** Trusted read generation; absent on original WebSocket deliveries. */
+    contentEpoch?: string
+    updatedAtMs?: number
+    /** A restore or visibility reset requires a history reload before display. */
+    contentStale: boolean = false
     streamText?: string // 流式文本内容（拼接后的）
     status!: MessageStatus; // 消息状态 1.成功 其他失败
     voicePlaying: boolean = false; // 语音是否在播放中 （语音消息特有）
@@ -284,9 +291,7 @@ function stringToUint8Array(str: string): Uint8Array {
 }
 
 function uint8ArrayToString(fileData: Uint8Array) {
-    const encodedString = String.fromCharCode.apply(null, Array.from(fileData));
-    const decodedString = decodeURIComponent(escape(encodedString));
-    return decodedString
+    return Buffer.from(fileData).toString("utf8")
 }
 
 export class MediaMessageContent extends MessageContent {
@@ -528,6 +533,8 @@ export enum PullMode {
 
 // 详细参考文档说明：https://githubim.com/api/message#%E8%8E%B7%E5%8F%96%E6%9F%90%E9%A2%91%E9%81%93%E6%B6%88%E6%81%AF
 export class SyncOptions {
+    /** Optional cancellation for providers that support AbortSignal. */
+    signal?: AbortSignal
     startMessageSeq: number = 0 // 开始消息列号（结果包含start_message_seq的消息）
     endMessageSeq: number = 0 //  结束消息列号（结果不包含end_message_seq的消息）0表示不限制
     limit: number = 30 // 每次限制数量
@@ -806,4 +813,3 @@ export class SubscribeConfig {
 }
 
 export const subscribeConfig = new SubscribeConfig()
-

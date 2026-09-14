@@ -196,6 +196,7 @@ export class ConnectManager {
         this.onlyDisconnect()
     }
     onlyDisconnect() {
+        WKSDK.shared().messageUpdateManager?.connectionClosed()
         this.stopHeart();
         this.stopReconnectTimer();
         if (this.ws) {

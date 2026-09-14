@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>WuKongIM 消息编辑示例</title>
+<style>
+body{font:16px system-ui;max-width:820px;margin:40px auto;padding:0 20px;color:#18232d;background:#f7f9fb}
+input,button{font:inherit;padding:9px;margin:4px}button{cursor:pointer}li{padding:14px;background:white;margin:8px 0;border-radius:8px;list-style:none}
+small{color:#697788}#status{min-height:24px}#messages{padding:0}#preview{padding:16px;background:#e8eff5;border-radius:8px}
+</style>
+<h1>消息编辑</h1><p>用两个浏览器窗口分别登录 Alice 和 Bob，发送消息后编辑，观察气泡和会话预览。</p>
+<form id="login"><input id="uid" value="alice" aria-label="用户名"><input id="secret" type="password" placeholder="配置的示例凭据" required><button>连接</button></form>
+<p id="status" role="status"></p>
+<section id="chat" hidden>
+  <input id="peer" value="bob" aria-label="对方用户名"><button id="open">打开会话</button><button id="reload">刷新历史</button>
+  <p id="preview">最近会话</p><ul id="messages"></ul>
+  <form id="compose"><input id="text" placeholder="输入消息" required><button>发送</button></form>
+</section>
+<script src="/sdk.js"></script>
+<script>
+const sdk = wk.WKSDK.shared();
+const $ = id => document.getElementById(id);
+let channel, messages = [], auth, uninstall;
+const status = text => { $('status').textContent = text; };
+const run = task => Promise.resolve().then(task).catch(e => status(e.code || e.message));
+async function transport(path, body, signal) {
+  const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: auth },
+    body: JSON.stringify(body), signal: signal || AbortSignal.timeout(10000) });
+  return { status: response.status, body: await response.json(), contentEpoch: response.headers.get('x-wk-content-epoch') || undefined };
+}
+function render() {
+  $('messages').replaceChildren(...messages.map(message => {
+    const item = document.createElement('li');
+    const text = document.createElement('span');
+    text.textContent = message.contentStale ? '正在重新校准消息，请刷新历史' : message.content.text || '[其他消息]';
+    item.append(text);
+    if (message.updatedAtMs) { const edited = document.createElement('small'); edited.textContent = ' · 已编辑'; item.append(edited); }
+    if (message.fromUID === sdk.config.uid && message.messageID && !message.contentStale) {
+      const edit = document.createElement('button'); edit.textContent = '编辑';
+      edit.onclick = () => run(async () => {
+        const draft = prompt('编辑正文', message.content.text || '');
+        if (draft === null) return;
+        edit.disabled = true;
+        try { await sdk.chatManager.updateMessage(message, new wk.MessageText(draft)); status('已保存'); }
+        catch (e) { status(e.code === 'version_conflict' ? '消息已被修改，请查看最新内容；你的草稿：' + draft : (e.code || e.message) + '；草稿：' + draft); }
+        finally { edit.disabled = false; }
+      }); item.append(edit);
+    }
+    return item;
+  }));
+}
+const onUpdated = updates => {
+  const changed = new Map(updates.filter(m => channel && m.channel.isEqual(channel)).map(m => [m.messageID, m]));
+  messages = messages.map(m => changed.get(m.messageID) || m); render();
+};
+sdk.chatManager.addMessageUpdateListener(onUpdated);
+sdk.chatManager.addMessageListener(message => {
+  if (channel && message.channel.isEqual(channel)) { messages.push(message); render(); }
+});
+sdk.chatManager.addMessageStatusListener(ack => {
+  const message = messages.find(m => m.clientSeq === ack.clientSeq);
+  if (message) { message.messageID = ack.messageID.toString(); message.messageSeq = ack.messageSeq;
+    message.status = ack.reasonCode === 1 ? wk.MessageStatus.Normal : wk.MessageStatus.Fail; render(); }
+});
+sdk.conversationManager.addConversationListener(conversation => {
+  if (channel && conversation.channel.isEqual(channel)) {
+    const message = conversation.lastMessage;
+    $('preview').textContent = `最近会话：${message?.contentStale ? '等待刷新' : message?.content?.text || ''} · 未读 ${conversation.unread}`;
+  }
+});
+sdk.connectManager.addConnectStatusListener(state => status(state === wk.ConnectStatus.Connected ? '已连接' : '连接状态：' + state));
+$('login').onsubmit = event => { event.preventDefault(); run(async () => {
+  sdk.disconnect(); if (uninstall) uninstall();
+  auth = 'Bearer ' + $('uid').value + ':' + $('secret').value;
+  const response = await transport('/session', {});
+  if (response.status !== 200) throw new Error(response.body.code);
+  sdk.config.uid = response.body.uid; sdk.config.token = response.body.token; sdk.config.addr = response.body.websocket;
+  uninstall = wk.installMessageEditing(sdk, { transport, onError: e => status(e.code || e.message) });
+  sdk.connect(); $('chat').hidden = false;
+}); };
+async function loadHistory() {
+  if (!channel) return;
+  const options = Object.assign(new wk.SyncOptions(), { limit: 30, pullMode: wk.PullMode.Up });
+  messages = await sdk.chatManager.syncMessages(channel, options); render();
+}
+$('open').onclick = () => run(async () => {
+  channel = new wk.Channel($('peer').value, 1);
+  sdk.conversationManager.openConversation = sdk.conversationManager.findConversation(channel) || Object.assign(new wk.Conversation(), { channel });
+  await loadHistory(); await sdk.conversationManager.sync();
+});
+$('reload').onclick = () => run(loadHistory);
+$('compose').onsubmit = event => { event.preventDefault(); run(async () => {
+  if (!channel) throw new Error('先打开会话');
+  await sdk.chatManager.send(new wk.MessageText($('text').value), channel); $('text').value = '';
+}); };
+window.addEventListener('pagehide', () => { sdk.conversationManager.openConversation = undefined; sdk.disconnect(); if (uninstall) uninstall(); });
+</script></html>
