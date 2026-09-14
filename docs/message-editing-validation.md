@@ -2,6 +2,10 @@
 
 日期：2026-09-14。此记录覆盖源码实现，不代表 npm 包已发布。
 
+以下为 SDK 初始联调记录。后续 [服务端 PR #960](https://github.com/WuKongIM/WuKongIM/pull/960)
+包含设备路由修复并增加提交后唤醒；同一 SDK 的最终复测为 170 ms / 205 ms，
+见 [服务端性能报告](https://github.com/WuKongIM/WuKongIM/blob/ad47e8376ce231c5c3c75e7e41538ee1956b331c/docs/reports/2026-09-14-message-update-hint-latency.md)。
+
 ## 候选代码
 
 - SDK：`codex/message-editing`，基于 `3c507ea3ebc08eae9d74fc1f76b150c380752008`。

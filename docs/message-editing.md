@@ -1,9 +1,8 @@
 # 消息编辑接入
 
 此功能需要包含 [WuKongIM #959](https://github.com/WuKongIM/WuKongIM/pull/959)
-的服务端，且需包含本次配套的 `c1db384a8` 修复（分支
-`codex/message-update-hint-route`）：编辑提示路由必须保留设备身份，否则真实客户端
-的会话校验会丢弃提示。当前文档描述此分支源码，不能据此认为已发布的 npm 1.3.5 包支持编辑。
+的服务端，并配套 [服务端 PR #960](https://github.com/WuKongIM/WuKongIM/pull/960)：
+其中的设备身份修复保证真实客户端能收到提示，提交后唤醒优化减少冷频道等待。当前文档描述此分支源码，不能据此认为已发布的 npm 1.3.5 包支持编辑。
 
 使用者增加一处配置、一个编辑调用和一个更新监听。继续使用
 `conversationManager.openConversation` 和 `chatManager.syncMessages()`；
@@ -156,8 +155,9 @@ const uninstall = sdk.messageUpdateManager.enable({ onError: showSyncError })
 未来持久化接入必须保证消息与游标在同一事务中提交。
 
 当前验证覆盖 Node.js 22 和 Chromium；宿主需支持 `AbortController` / `AbortSignal`，
-其它浏览器和 UniApp 尚未完成兼容性联调。服务端提示采用后台任务发现机制，本次
-真实联调观察到秒级提示等待；SDK 的 100 ms 合并窗口不是端到端时延保证。
+其它浏览器和 UniApp 尚未完成兼容性联调。PR #960 增加有界的提交后唤醒，
+本机复测的端到端更新样本为 170–205 ms；队列溢出或派发失败仍依赖后台扫描。
+这些样本及 SDK 的 100 ms 合并窗口都不是生产时延保证。
 提示到达、重连或回到前台会触发修复，SDK 不通过周期轮询保证固定时限内刷新。
 
 ## 运行示例与验证

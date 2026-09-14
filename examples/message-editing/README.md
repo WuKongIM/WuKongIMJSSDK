@@ -1,8 +1,8 @@
 # 双客户端消息编辑示例
 
 此示例独立于旧 Vue 示例。它直接加载本工作区构建的 SDK，不使用 npm 已发布版本。
-需要 Node.js 22，以及已包含 WuKongIM PR #959 和配套设备身份路由修复
-`c1db384a8`（`codex/message-update-hint-route` 分支）的单节点集群或多节点集群。
+需要 Node.js 22，以及包含 WuKongIM PR #959 和
+[配套服务端 PR #960](https://github.com/WuKongIM/WuKongIM/pull/960) 的单节点集群或多节点集群。
 
 在仓库根目录运行：
 
