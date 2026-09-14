@@ -1,11 +1,12 @@
 import { Channel, ChannelInfo, Conversation, ConversationExtra, Message, MessageExtra, Reminder, SignalKey, Subscriber, SyncOptions } from "./model"
 import { MessageTask } from './task'
+import { ContentResponse, UpdateMessageRequest, UpdateMessageResult, MessageUpdatesPage, UpdateReadOptions } from "./message_updates"
 
 export type ConnectAddrCallback = (addr: string) => void
 
 export type ChannelInfoCallback = (channel: Channel) => Promise<ChannelInfo>
 export type SyncSubscribersCallback = (channel: Channel, version: number) => Promise<Subscriber[]>
-export type SyncConversationsCallback = (filter?:any) => Promise<Conversation[]>
+export type SyncConversationsCallback = (filter?:any) => Promise<Conversation[] | ContentResponse<Conversation[]>>
 export type SyncConversationExtrasCallback = (versation:number) => Promise<ConversationExtra[]|undefined>
 
 export type SignalSessionKeyCallback = (channel: Channel) => Promise<SignalKey|null>
@@ -17,13 +18,17 @@ export type ReminderDoneCallback = (ids: number[]) => Promise<void>
 
 export type MessageUploadTaskCallback = (message: Message) => MessageTask
 
-export type SyncMessageCallback = (channel:Channel,opts:SyncOptions) => Promise<Message[]> // 同步消息回调
+export type SyncMessageCallback = (channel:Channel,opts:SyncOptions) => Promise<Message[] | ContentResponse<Message[]>> // 同步消息回调
 
 export type SyncMessageExtraCallback =  (channel:Channel,extraVersion:number,limit:number) => Promise<MessageExtra[]> // 消息扩展同步
 
 export type MessageReadedCallback = (channel:Channel,messages:Message[]) => Promise<void> // 消息已读回调
 
 export class Provider {
+    /** Application-authenticated edit transport. Retry identical requests only. */
+    updateMessageCallback?: (request: UpdateMessageRequest, signal?: AbortSignal) => Promise<ContentResponse<UpdateMessageResult>>
+    /** Single-channel latest-state feed; cursors are opaque. */
+    syncMessageUpdatesCallback?: (channel: Channel, options: UpdateReadOptions) => Promise<ContentResponse<MessageUpdatesPage>>
 
     // 获取IM连接地址
     connectAddrCallback!: (callback: ConnectAddrCallback) => void  

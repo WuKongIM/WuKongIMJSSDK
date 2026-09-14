@@ -1,6 +1,8 @@
 /node_modules
 /dist
 /lib
+/.tmp
+/.worktrees
 .DS_Store
 src/version.ts
 npm-debug.log*

@@ -11,6 +11,7 @@ import { ReminderManager } from "./reminder_manager";
 import { WKConfig } from "./config";
 import { ReceiptManager } from "./receipt_manager";
 import { WKEventManager } from "./event_manager";
+import { MessageUpdateManager } from "./message_updates";
 
 
 
@@ -27,6 +28,7 @@ export default class WKSDK {
     securityManager!: SecurityManager
     receiptManager!: ReceiptManager
     eventManager!: WKEventManager
+    messageUpdateManager!: MessageUpdateManager
     private static instance: WKSDK
 
     public static shared() {
@@ -49,6 +51,7 @@ export default class WKSDK {
         this.reminderManager = ReminderManager.shared()
         this.receiptManager = ReceiptManager.shared(this.config.receiptFlushInterval)
         this.eventManager = WKEventManager.shared()
+        this.messageUpdateManager = new MessageUpdateManager(this)
 
 
         this.registerFactor((contentType: number): MessageContent | undefined => {
@@ -143,6 +146,8 @@ export * from "./channel_manager"
 export * from "./provider"
 export * from "./event_manager"
 export * from "./config"
+export * from "./message_updates"
+export * from "./message_editing_http"
 
 // const self = WKSDK.shared();
 // window['wksdk'] = self;  /* tslint:disable-line */ // 这样普通的JS就可以通过window.wksdk获取到app对象

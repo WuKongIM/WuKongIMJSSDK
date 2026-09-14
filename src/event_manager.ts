@@ -55,6 +55,7 @@ export class WKEvent extends EventPacket {
         this.data = packet.data
 
         const text = String.fromCharCode.apply(null, Array.from(packet.data))
-        this.dataJson = JSON.parse(decodeURIComponent(escape(text)))
+        try { this.dataJson = JSON.parse(decodeURIComponent(escape(text))) }
+        catch (_) { this.dataJson = undefined } // Malformed advisory events must not interrupt delivery.
     }
 }
