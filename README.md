@@ -23,6 +23,22 @@ http://imdemo.githubim.com
 
 yarn build
 
+## 开发检查
+
+PR 更新和推送到 `main` 时，`SDK CI` 会在 Ubuntu / Node.js 22 上执行以下检查：
+
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build
+npm run typecheck
+npm run lint
+npm run test:unit
+```
+
+构建会先生成 `src/version.ts` 和测试使用的产物。`npm test` 仍会自动构建并运行单元测试；
+`npm run test:unit` 用于已有构建产物的场景。真实服务端与浏览器联调继续通过
+`npm run test:integration` 单独运行，环境要求见 [消息编辑接入文档](docs/message-editing.md#运行示例与验证)。
+
 ## 发布
 
 修改package.json里版本号
