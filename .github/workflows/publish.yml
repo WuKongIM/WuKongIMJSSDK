@@ -43,7 +43,13 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          dist_tag=latest
+          if [[ "$version" == *-* ]]; then dist_tag=next; fi
+          npm publish --provenance --access public --tag "$dist_tag"
 
       - name: Create GitHub release summary
         run: |
@@ -55,5 +61,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "npm install wukongimjssdk" >> $GITHUB_STEP_SUMMARY
+          echo "npm install wukongimjssdk@$(node -p "require('./package.json').version")" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
