@@ -2,7 +2,7 @@
 
 此功能需要包含 [WuKongIM #959](https://github.com/WuKongIM/WuKongIM/pull/959)
 的服务端，并配套 [服务端 PR #960](https://github.com/WuKongIM/WuKongIM/pull/960)：
-其中的设备身份修复保证真实客户端能收到提示，提交后唤醒优化减少冷频道等待。配套预发布版本为服务端 `v3.0.0-beta.17` 与 SDK `1.4.0-beta.1`（npm `next`）；npm `1.3.5` 不支持编辑。
+其中的设备身份修复保证真实客户端能收到提示，提交后唤醒优化减少冷频道等待。配套预发布版本为服务端 `v3.0.0-beta.18` 与 SDK `1.4.0-beta.1`（npm `next`）；npm `1.3.5` 不支持编辑。
 
 使用者增加一处配置、一个编辑调用和一个更新监听。继续使用
 `conversationManager.openConversation` 和 `chatManager.syncMessages()`；

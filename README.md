@@ -59,4 +59,4 @@ npm i wukongimjssdk
 
 ## 消息编辑
 
-支持新服务端的可选消息编辑接入：一处配置、一个编辑调用、一个更新监听。参见 [接入文档](docs/message-editing.md) 和 [双客户端浏览器示例](examples/message-editing/README.md)。预发布版本安装：`npm install wukongimjssdk@1.4.0-beta.1`，配套服务端 `v3.0.0-beta.17`。
+支持新服务端的可选消息编辑接入：一处配置、一个编辑调用、一个更新监听。参见 [接入文档](docs/message-editing.md) 和 [双客户端浏览器示例](examples/message-editing/README.md)。预发布版本安装：`npm install wukongimjssdk@1.4.0-beta.1`，配套服务端 `v3.0.0-beta.18`。
