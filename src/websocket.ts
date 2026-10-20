@@ -129,6 +129,9 @@ export class WKWebsocket {
     onerror(callback: (e: Event) => void) {
         if (this.platform) {
             this.ws.onError((e:any) => {
+                if (this.destory) {
+                    return
+                }
                 if (callback) {
                     callback(e)
                 }

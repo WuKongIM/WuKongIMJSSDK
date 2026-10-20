@@ -70,6 +70,8 @@ export class ConnectManager {
             clearTimeout(this.reConnectTimeout);
             this.reConnectTimeout = null;
         }
+        // 取消待执行的重连时必须一并释放锁，否则之后的 reConnect() 都会被直接忽略
+        this.lockReconnect = false;
     }
     // 重置心跳
     restHeart() {
@@ -218,6 +220,7 @@ export class ConnectManager {
         }
         const self = this;
         this.reConnectTimeout = setTimeout(() => {
+            this.reConnectTimeout = null;
             if (this.ws) {
                 this.ws.close();
                 this.ws = undefined;
